@@ -169,51 +169,52 @@ def main():
 			bitfield = unpack('>' + str(len_field - 1) + 's',buffer[5:])
 
 	"""
-	SEND INTERESTED MESSAGE AND GET RESPONSE
-	"""
-
-
-	#KEEP READING FROM BUFFER AND DECODE THE MESSAGES EVERY TIME WE GET 4 BYTES
-
-	#receive 10 * 1024 bytes
-
-	#while True loop -> check if length of the buffer is > 4, if so, unpack the first 4 bytes
-
-	#now decode the first 4 bytes and see the data length PORTION
-
-	#check if that the length has been received i.e. len(buffer) >= header_length
-
-	#if so, decode the next byte - the message_id
-
-	#depending on the message_id, 1. consume the message, 2. update the parameters
-
-	"""
 	Now send an interested message AND wait for an unchoke
+	Depending on the message_id, 1. consume the message, 2. update the parameters
 	"""
 
-	# connection_state = ['choked']
+	connection_state = ['choked']
 
-	#interested message
-	#<len=0001><id=2>
+	# interested message
+	# <len=0001><id=2>
 
-	# interested_message = pack('>IB',1,2)
+	interested_message = pack('>IB',1,2)
 
-	# s.send(interested_message)
+	s.send(interested_message)
+	
+	print('INTERESTED MESSAGE SENT!')
 
-	# peer_response = s.recv(10 * 1024)
+	connection_state.append('interested')
 
-	# if(len(peer_response) >= 4):
-	# 	len_field = peer_response[0:4]
-	# 	len_field = unpack('>I',len_field)
-	# 	print(len_field)
+	buffer = b''
+	
+	while len(buffer) < 4:
+		buffer += s.recv(10 * 1024)
+
+	message_len = int(unpack('>I',buffer[0:4])[0])
+
+	while len(buffer) - 4 < message_len:
+		buffer += s.recv(10 * 1024)
+
+
+	message_id = int(unpack('>B',buffer[4:])[0])
+
+	if(message_id == 1):
+		print('UNCHOKED!')
+
+
+	connection_state.remove('choked')
+
+	if 'choked' not in connection_state:
+		if 'interested' in connection_state:
+			if 'pending_request' not in connection_state:
+
+				pass
+				#request a piece's block from the peer
 
 
 
-
-
-
-
-
+	
 
 
 
@@ -224,14 +225,72 @@ def main():
 def _decode_port(binary_port):
 	#returns the decimal equivalent of the binary_port which is 2 bytes long, encoded in ASCII or direct hexadecimal \xab (ab is hexadecimal)
 	"""
-
 	The port number is in big endian format
+	"""	
 
-	"""
-	
 	return unpack('>H',binary_port)[0]
+
+class Block:
+	def __init__(self, piece_index, piece_offset, block_length):
+		self.piece_index = piece_index
+		self.piece_offset = piece_offset
+		self.block_length = block_length
+		self.state = 'Missing'
+		self.data = b''
+
+
+class Piece:
+	def __init__(self, piece_hash, piece_index, piece_length):
+		self.index = piece_index
+		self.hash = piece_hash
+		self.blocks = list() #split this
+		self.piece_length = piece_length
+
+	def _get_next_block(self):
+		#return the next missing block in the blocks list
+
+	def _receive_block(self):
+		#receive the block, store the data with the offset in the particular index of this piece
+
+
+class PieceManager:
+	self.peers = dict()
+	self.pieces = list()
+
+	def __init__(self, pieces):
+		self.pieces = pieces
+
+	def _add_peer(self, peer_id, bitfield):
+		self.peers[peer_id] = bitfield
+
+	def _get_next_piece(self, peer_id):
+		#get the next piece of this particular peer by decoding the bitfield
+
+
+
+
+"""
+Procedure:
+
+For every peer, get the next piece/ the currently executing piece.
+Get the next block of that piece, IF the piece is not over.
+If the piece is over, write the piece to disk.
+
+"""
+
+
+
+
+
+
+
+
+
+
+
 
 
 main()
+
 
 
