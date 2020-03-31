@@ -51,8 +51,6 @@ def main():
 		info_hash = sha1(bencoded_info).digest()
 
 
-
-
 	length = info[b'length']
 	name = info[b'name']
 	piece_length = info[b'piece length']
@@ -110,8 +108,6 @@ def main():
 
 		peer_list = [peers[i:i + 6] for i in range(0,len(peers),6)]
 
-		debugging = [(p[:4],p[4:]) for p in peer_list]
-
 		peer_list = [(socket.inet_ntoa(p[0:4]),_decode_port(p[4:])) for p in peer_list]
 
 
@@ -141,7 +137,7 @@ def main():
 	# Now open a socket for this peer and send this handshake and get a reply
 
 
-	s = socket.create_connection(peer_list[0],timeout=2)
+	s = socket.create_connection(peer_list[0],timeout=10)
 	# s.setblocking(False)
 
 
@@ -149,34 +145,33 @@ def main():
 
 	peer_response = s.recv(10 * 1024)
 
-	if len(peer_response) == 68:
+
+
+	if len(peer_response) >= 68:
+		buffer = peer_response[68:]
+		peer_response = peer_response[0:68]
 		peer_response = unpack('>B19s8s20s20s',peer_response)
+		if(peer_response[3] != info_hash):
+			RuntimeError('Info hash not equal')
+		print('Hash verified!')
 
-		
-	else:
-		RuntimeError('Peer handshake response not formatted correct')
+		#decode buffer
+		while(len(buffer) < 4):
+			buffer += s.recv(10 * 1024)
+		len_field = unpack('>I',buffer[0:4])[0]
+		while(len(buffer) - 4 < len_field):
+			buffer += s.recv(10 * 1024)
 
-	if(peer_response[3] != info_hash):
-		RuntimeError('Info hash not equal')
+		message_id = int(unpack('>B',buffer[4:5])[0])
 
-	
-
+		if(message_id == 5):
+			print('BITFIELD MESSAGE RECEIVED!')
+			bitfield = unpack('>' + str(len_field - 1) + 's',buffer[5:])
 
 	"""
-
-	MESSAGE PASSING
-
-	"""
-
-
-	"""
-
 	SEND INTERESTED MESSAGE AND GET RESPONSE
-
 	"""
 
-
-	#SEND INTERESTED MESSAGE
 
 	#KEEP READING FROM BUFFER AND DECODE THE MESSAGES EVERY TIME WE GET 4 BYTES
 
@@ -192,18 +187,35 @@ def main():
 
 	#depending on the message_id, 1. consume the message, 2. update the parameters
 
-	
-	
-
-	
-
-
 	"""
-
 	Now send an interested message AND wait for an unchoke
-
-
 	"""
+
+	# connection_state = ['choked']
+
+	#interested message
+	#<len=0001><id=2>
+
+	# interested_message = pack('>IB',1,2)
+
+	# s.send(interested_message)
+
+	# peer_response = s.recv(10 * 1024)
+
+	# if(len(peer_response) >= 4):
+	# 	len_field = peer_response[0:4]
+	# 	len_field = unpack('>I',len_field)
+	# 	print(len_field)
+
+
+
+
+
+
+
+
+
+
 
 	return None
 
