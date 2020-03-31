@@ -230,6 +230,15 @@ def _decode_port(binary_port):
 
 	return unpack('>H',binary_port)[0]
 
+
+class Peer:
+	def __init__(self, peer_id):
+		self.id = peer_id
+		self.ongoing_piece = None
+		
+	def _set_bitfield(self, bitfield):
+		self.bitfield = bitfield
+
 class Block:
 	def __init__(self, piece_index, piece_offset, block_length):
 		self.piece_index = piece_index
@@ -249,24 +258,31 @@ class Piece:
 	def _get_next_block(self):
 		#return the next missing block in the blocks list
 
-	def _receive_block(self):
+	def _receive_block(self, block):
 		#receive the block, store the data with the offset in the particular index of this piece
 
 
 class PieceManager:
-	self.peers = dict()
+	self.peers = list()
 	self.pieces = list()
 
 	def __init__(self, pieces):
 		self.pieces = pieces
 
-	def _add_peer(self, peer_id, bitfield):
-		self.peers[peer_id] = bitfield
+	def _add_peer(self, peer_id):
+		self.peers.append(Peer(peer_id))
+	
+	def update_peer(self,peer_id):
+		#set the peer's bitfield
 
 	def _get_next_piece(self, peer_id):
 		#get the next piece of this particular peer by decoding the bitfield
 
+	def _receive_block(self, peer_id, piece_index, block_offset, data):
+		#receive the block, and mark it completed in the piece, and check if the piece is over and hash is matching
 
+	def _peer_connection_closed(self, peer_id):
+		#delete the blocks of the peer's piece and 
 
 
 """
@@ -275,6 +291,8 @@ Procedure:
 For every peer, get the next piece/ the currently executing piece.
 Get the next block of that piece, IF the piece is not over.
 If the piece is over, write the piece to disk.
+
+Include: If the peer connection is closed at any point of time, indicate the PieceManager of the same.
 
 """
 
