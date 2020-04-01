@@ -208,7 +208,6 @@ def main():
 	if 'choked' not in connection_state:
 		if 'interested' in connection_state:
 			if 'pending_request' not in connection_state:
-
 				pass
 				#request a piece's block from the peer
 
@@ -231,58 +230,6 @@ def _decode_port(binary_port):
 	return unpack('>H',binary_port)[0]
 
 
-class Peer:
-	def __init__(self, peer_id):
-		self.id = peer_id
-		self.ongoing_piece = None
-		
-	def _set_bitfield(self, bitfield):
-		self.bitfield = bitfield
-
-class Block:
-	def __init__(self, piece_index, piece_offset, block_length):
-		self.piece_index = piece_index
-		self.piece_offset = piece_offset
-		self.block_length = block_length
-		self.state = 'Missing'
-		self.data = b''
-
-
-class Piece:
-	def __init__(self, piece_hash, piece_index, piece_length):
-		self.index = piece_index
-		self.hash = piece_hash
-		self.blocks = list() #split this
-		self.piece_length = piece_length
-
-	def _get_next_block(self):
-		#return the next missing block in the blocks list
-
-	def _receive_block(self, block):
-		#receive the block, store the data with the offset in the particular index of this piece
-
-
-class PieceManager:
-	self.peers = list()
-	self.pieces = list()
-
-	def __init__(self, pieces):
-		self.pieces = pieces
-
-	def _add_peer(self, peer_id):
-		self.peers.append(Peer(peer_id))
-	
-	def update_peer(self,peer_id):
-		#set the peer's bitfield
-
-	def _get_next_piece(self, peer_id):
-		#get the next piece of this particular peer by decoding the bitfield
-
-	def _receive_block(self, peer_id, piece_index, block_offset, data):
-		#receive the block, and mark it completed in the piece, and check if the piece is over and hash is matching
-
-	def _peer_connection_closed(self, peer_id):
-		#delete the blocks of the peer's piece and 
 
 
 """
@@ -295,6 +242,38 @@ If the piece is over, write the piece to disk.
 Include: If the peer connection is closed at any point of time, indicate the PieceManager of the same.
 
 """
+
+
+
+
+
+
+#TORRENT, TORRENT CLIENT, TRACKER HAVE BEEN IMPLEMENTED.
+
+#The torrent contains the name of the file, length, no. of pieces along with their hashes, and piece length
+
+#The tracker returns a response, now.
+
+#The tracker response contains the peers list, which has been decoded to obtain (ip, port) tuples. 
+
+
+#To do:
+
+#The asynchronous part starts here.
+
+#After we get all the peers, we have to asynchronouly start peer connections(handshake, implement an asynchronous PeerIteratorStream for each Peer in the PeerConnection)
+
+#Further, stuff will be managed by the piece manager(for decoding piece blocks, writing to file)
+
+#The piece manager at a point will have Torrent.status = 'Completed'
+
+#At that time, we have to quit.
+
+
+
+
+
+
 
 
 
