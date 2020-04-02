@@ -1,5 +1,6 @@
 """
 Stage 1: Implement N peer connections and see if all of them are performing the handshake automatically. Also decode their bitfield messages and see if they work.
+Stage 2: Handshake limit - to reduce the traffic
 """
 
 from own_bencoding import Encoder, Decoder
@@ -93,11 +94,6 @@ async def main():
     peer_list = [(socket.inet_ntoa(p[0:4]),_decode_port(p[4:])) for p in peer_list]
 
 
-    print('Peer list: ')
-    pprint(peer_list)
-
-    print('\n\n\n')
-
     """
     We have the list of peers.
     Now we have to create num_peers PeerConnection instances, which will automatically asynchronouly perform handshake and print the bitfield
@@ -107,11 +103,11 @@ async def main():
     for peer in peer_list:
         peer_queue.put_nowait(peer)
 
-    peer_connections = [PeerConnection(peer_queue,info_hash,peer_id) for peer in peer_list]
+    peer_connections = [PeerConnection(peer_queue,info_hash,peer_id) for peer in peer_list[:5]]
 
     while(True):
         #now it stops executing this function, and starts executing the waiting tasks(the _start_connection() functions of all the peers)
-        await asyncio.sleep(1)
+        await asyncio.sleep(20)
 
 
 
@@ -122,6 +118,9 @@ async def main():
     """
     End of main function
     """
+
+
+
 
 
 

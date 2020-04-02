@@ -18,11 +18,11 @@ class PeerMessage:
 
 
 class Choke(PeerMessage):
-    def _encode():
+    def encode():
         pass
 
     @classmethod
-    def _decode():
+    def decode():
         pass
 
 
@@ -61,19 +61,19 @@ class Handshake(PeerMessage):
         self.info_hash = info_hash
         self.peer_id = peer_id
 
-    def _encode(self,info_hash, peer_id):
+    def encode(self):
 
         return pack(
             '>B19s8s20s20s',
             19,
             b'BitTorrent protocol',
             b'\x00' * 8,
-            info_hash,
-            peer_id
+            self.info_hash,
+            self.peer_id
             )
 
     @classmethod
-    def _decode(cls, data : bytes):
+    def decode(cls, data : bytes):
         response = unpack('>B19s8s20s20s',data)
         return cls(info_hash = response[3], peer_id = response[4])
 

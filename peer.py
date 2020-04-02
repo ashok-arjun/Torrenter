@@ -22,20 +22,20 @@ class PeerConnection:
         self.my_peer_id = my_peer_id
         self.states = []
         self.connection = asyncio.ensure_future(self._start_connection())
+        self.reader = None
+        self.writer = None
 
     async def _start_connection(self):
         ip, port = await self.common_peer_queue.get()
 
-        #try opening a socket asynchronouly
-
         
         try:
-            reader, writer = asyncio.open_connection(ip, port)
+            self.reader, self.writer = await asyncio.open_connection(ip, port)
         except ConnectionRefusedError:
             return None
         
         buffer = await self._handshake()
-        
+        print('Handshake successful for',ip,port)
         self.states.append('choked')
 
         # await self._send_interested()
@@ -89,6 +89,7 @@ class PeerConnection:
 class PeerStreamIterator:
 
     def __init__(self, reader, buffer):
+        print('Init')
         self.reader = reader
         self.buffer = buffer | b''
 
@@ -104,21 +105,23 @@ class PeerStreamIterator:
         #this should be an infinite loop - as it is an iterator
 
         while(True):
+            print(self.buffer)
             message_class = self._parse()
             if message_class != None:
+                print(message_class)
                 return message_class
             else:
-                buffer += await self.reader.read(10 * 1024)
+                self.buffer += await self.reader.read(10 * 1024)
 
 
 
     def _parse(self):
 
         def _get_data_len():
-            return int(unpack('>I',buffer[0:4])[0])
+            return int(unpack('>I',self.buffer[0:4])[0])
 
         def _get_message_id():
-            return int(unpack('>B',buffer[4:5])[0])
+            return int(unpack('>B',self.buffer[4:5])[0])
 
     
         def _consume():
@@ -128,7 +131,7 @@ class PeerStreamIterator:
             return self.buffer[:4 + data_length]
 
 
-        if(len(buffer) >= 4):
+        if(len(self.buffer) >= 4):
             data_length = _get_data_len()
 
             #keepalive message is of zero length - should be ignored
@@ -137,7 +140,7 @@ class PeerStreamIterator:
                 _consume()
                 return None
 
-            if(len(buffer) - 4 >= data_length):
+            if(len(self.buffer) - 4 >= data_length):
                 message_id = _get_message_id()
 
                 if message_id == PeerMessage.Choke:
@@ -172,7 +175,7 @@ class PeerStreamIterator:
                     complete_message = _get_full_message()
                     _consume()
                     return Cancel.decode(complete_message)
-                else 
+                else: 
                     raise ProtocolError('Unknown message ID, cannot be decoded')
 
             else:
