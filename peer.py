@@ -21,9 +21,10 @@ class PeerConnection:
         self.info_hash = info_hash
         self.my_peer_id = my_peer_id
         self.states = []
-        self.connection = asyncio.ensure_future(self._start_connection())
         self.reader = None
         self.writer = None
+        self.connection = asyncio.ensure_future(self._start_connection())
+
 
     async def _start_connection(self):
         ip, port = await self.common_peer_queue.get()
@@ -36,13 +37,16 @@ class PeerConnection:
         
         buffer = await self._handshake()
         print('Handshake successful for',ip,port)
+        print('The returned buffer is ',buffer)
         self.states.append('choked')
 
         # await self._send_interested()
 
         # self.states.append('interested')
 
-        async for message in PeerStreamIterator(self.reader,buffer):
+        stream = PeerStreamIterator(self.reader,buffer)
+
+        async for message in stream.iterate():
             if type(message) is BitField:
                 peer_bitfield = message
                 print(ip, port, peer_bitfield, '\n')
@@ -88,32 +92,38 @@ class PeerConnection:
 
 class PeerStreamIterator:
 
-    def __init__(self, reader, buffer):
-        print('Init')
+    def __init__(self, reader, initial):
         self.reader = reader
-        self.buffer = buffer | b''
+        self.buffer = initial if initial else b''
 
-
-    async def __aiter__(self):
-        return self
-
-    async def __anext__(self):
-        #keep reading until 4 bytes, then particular length and the buffer
-        #parse the message_id ONLY, based on that, return the class to the PeerConnection
-
-
-        #this should be an infinite loop - as it is an iterator
-
+    async def iterate(self):
         while(True):
-            print(self.buffer)
-            message_class = self._parse()
-            if message_class != None:
-                print(message_class)
-                return message_class
-            else:
-                self.buffer += await self.reader.read(10 * 1024)
+            try:
+                data = await self.reader.read(10 * 1024)
+                if data:
+                    self.buffer += data
+                    message_class = self._parse()
+                    if message_class:
+                        yield message_class
+                else:
+                    print('Nothing received from the socket')
+                    if self.buffer:
+                        message_class = self._parse()
+                        if message_class:
+                            yield message_class  
+
+            except ConnectionResetError:
+                print('Connection terminated by peer')
 
 
+
+        # while(True):
+        #     message_class = self._parse()
+        #     print(self.buffer, message_class)
+        #     if message_class != None:
+        #         yield message_class
+        #     else:
+        #         self.buffer += await self.reader.read(10 * 1024)
 
     def _parse(self):
 
@@ -182,3 +192,14 @@ class PeerStreamIterator:
                 return None       
         else:
             return None
+
+
+
+
+# async def main():
+#     reader, writer = await asyncio.open_connection('37.187.109.201', 64802)
+#     async for i in PeerStreamIterator(reader,b'').iterate():
+#         print('Tick',i)
+
+# loop = asyncio.get_event_loop()
+# loop.run_until_complete(main())

@@ -103,7 +103,7 @@ async def main():
     for peer in peer_list:
         peer_queue.put_nowait(peer)
 
-    peer_connections = [PeerConnection(peer_queue,info_hash,peer_id) for peer in peer_list[:5]]
+    peer_connections = [PeerConnection(peer_queue,info_hash,peer_id) for peer in peer_list[:1]]
 
     while(True):
         #now it stops executing this function, and starts executing the waiting tasks(the _start_connection() functions of all the peers)

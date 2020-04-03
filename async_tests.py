@@ -141,54 +141,88 @@
 # loop.close()
 
 
+# import asyncio
+
+# class Foo(object):
+#     def __init__(self):
+#         self.state = 0
+
+#     def __aiter__(self):
+#         return self
+
+#     def __anext__(self):
+#         print('Inside anext')
+#         def later():
+#             try:
+#                 print(f'later: called when state={self.state}')
+
+#                 self.state += 1
+#                 if self.state == 3:
+#                     future.set_exception(StopAsyncIteration())
+#                 else:
+#                     future.set_result(self.state)
+#             finally:
+#                 print(f'later: left when state={self.state}')
+
+#         print(f'__anext__: called when state={self.state}')
+#         try:
+#             future = asyncio.Future()
+
+#             loop.call_later(0.1, later)
+
+#             return future
+#         finally:
+#             print(f'__anext__: left when state={self.state}')
+
+# async def main():
+#     print('==== async for ====')
+#     foo = Foo()
+#     async for x in foo:
+#         print('>', x)
+
+#     print('==== __anext__() ====')
+#     foo = Foo()
+#     a = foo.__anext__()
+#     b = foo.__anext__()
+#     c = foo.__anext__()
+#     print('>', await a)
+#     print('>', await b)
+#     print('>', await c)
+
+# loop = asyncio.get_event_loop()
+# loop.run_until_complete(main())
+# loop.run_until_complete(asyncio.gather(*asyncio.Task.all_tasks()))
+# loop.close()
+
+
+
+
+
+
+
 import asyncio
 
-class Foo(object):
+class Ticker:
+
+    
+
     def __init__(self):
-        self.state = 0
+        self.delay = 1
+        self.to = 10
 
-    def __aiter__(self):
-        return self
+    async def ticker(self,delay, to):
+        """Yield numbers from 0 to `to` every `delay` seconds."""
+        i = 1
+        while(True):
+            print('While')
+            yield i
+            await asyncio.sleep(delay)
 
-    def __anext__(self):
-        def later():
-            try:
-                print(f'later: called when state={self.state}')
-
-                self.state += 1
-                if self.state == 3:
-                    future.set_exception(StopAsyncIteration())
-                else:
-                    future.set_result(self.state)
-            finally:
-                print(f'later: left when state={self.state}')
-
-        print(f'__anext__: called when state={self.state}')
-        try:
-            future = asyncio.Future()
-
-            loop.call_later(0.1, later)
-
-            return future
-        finally:
-            print(f'__anext__: left when state={self.state}')
 
 async def main():
-    print('==== async for ====')
-    foo = Foo()
-    async for x in foo:
-        print('>', x)
-
-    print('==== __anext__() ====')
-    foo = Foo()
-    a = foo.__anext__()
-    b = foo.__anext__()
-    c = foo.__anext__()
-    print('>', await a)
-    print('>', await b)
-    print('>', await c)
+    ticker = Ticker()
+    async for i in ticker.ticker(1,10):
+        print('Tick',i)
 
 loop = asyncio.get_event_loop()
 loop.run_until_complete(main())
-loop.run_until_complete(asyncio.gather(*asyncio.Task.all_tasks()))
-loop.close()
