@@ -1,16 +1,10 @@
 import asyncio
 from protocol import *
+from struct import pack,unpack
 
 
 class ProtocolError(BaseException):
     pass
-
-
-
-
-
-
-
 
 
 class PeerConnection:
@@ -35,24 +29,21 @@ class PeerConnection:
         except ConnectionRefusedError:
             return None
         
-        buffer = await self._handshake()
+        buffer = [await self._handshake()]
         print('Handshake successful for',ip,port)
-        print('The returned buffer is ',buffer)
+        
         self.states.append('choked')
 
-        # await self._send_interested()
+        await self._send_interested()
 
-        # self.states.append('interested')
-
-        stream = PeerStreamIterator(self.reader,buffer)
-
-        async for message in stream.iterate():
+        async for message in PeerStreamIterator.iterate(self.reader, buffer):
             if type(message) is BitField:
-                peer_bitfield = message
-                print(ip, port, peer_bitfield, '\n')
-                break
-        return None
+                peer_bitfield = message.bitfield
+                print('Bitfield message received') 
+            elif type(message) is Unchoke:
+                print('Unchoke received')
 
+                
     async def _handshake(self):
         self.writer.write(Handshake(self.info_hash, self.my_peer_id).encode())
         await self.writer.drain()
@@ -76,72 +67,27 @@ class PeerConnection:
         await self.writer.drain()
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 class PeerStreamIterator:
 
-    def __init__(self, reader, initial):
-        self.reader = reader
-        self.buffer = initial if initial else b''
-
-    async def iterate(self):
-        while(True):
-            try:
-                data = await self.reader.read(10 * 1024)
-                if data:
-                    self.buffer += data
-                    message_class = self._parse()
-                    if message_class:
-                        yield message_class
-                else:
-                    print('Nothing received from the socket')
-                    if self.buffer:
-                        message_class = self._parse()
-                        if message_class:
-                            yield message_class  
-
-            except ConnectionResetError:
-                print('Connection terminated by peer')
-
-
-
-        # while(True):
-        #     message_class = self._parse()
-        #     print(self.buffer, message_class)
-        #     if message_class != None:
-        #         yield message_class
-        #     else:
-        #         self.buffer += await self.reader.read(10 * 1024)
-
-    def _parse(self):
+    @staticmethod
+    def _parse(buffer):
 
         def _get_data_len():
-            return int(unpack('>I',self.buffer[0:4])[0])
+            return int(unpack('>I',buffer[0][0:4])[0])
 
         def _get_message_id():
-            return int(unpack('>B',self.buffer[4:5])[0])
+            return int(unpack('>B',buffer[0][4:5])[0])
 
-    
+
         def _consume():
-            self.buffer = self.buffer[4 + data_length:]
+            nonlocal buffer
+            buffer[0] = buffer[0][4 + data_length:]
 
         def _get_full_message():
-            return self.buffer[:4 + data_length]
+            return buffer[0][:4 + data_length]
 
 
-        if(len(self.buffer) >= 4):
+        if(len(buffer[0]) >= 4):
             data_length = _get_data_len()
 
             #keepalive message is of zero length - should be ignored
@@ -150,9 +96,13 @@ class PeerStreamIterator:
                 _consume()
                 return None
 
-            if(len(self.buffer) - 4 >= data_length):
+            if(len(buffer[0]) - 4 >= data_length):
                 message_id = _get_message_id()
 
+                if message_id == PeerMessage.Bitfield:
+                    complete_message = _get_full_message()
+                    _consume()
+                    return BitField.decode(complete_message)
                 if message_id == PeerMessage.Choke:
                     _consume()
                     return Choke()
@@ -184,7 +134,7 @@ class PeerStreamIterator:
                 elif message_id == PeerMessage.Cancel:
                     complete_message = _get_full_message()
                     _consume()
-                    return Cancel.decode(complete_message)
+                    return Cancel.decode(complete_message)                
                 else: 
                     raise ProtocolError('Unknown message ID, cannot be decoded')
 
@@ -194,12 +144,22 @@ class PeerStreamIterator:
             return None
 
 
+    @staticmethod
+    async def iterate(reader, buffer):
+        while(True):
+            try:
+                data = await reader.read(1024)
+                if data:
+                    buffer[0] = buffer[0] + data
+                    decoded = PeerStreamIterator._parse(buffer)
+                    if decoded:
+                        yield decoded
+                else:
+                    print('Nothing received from the socket')
+                    if buffer[0]:
+                        decoded = PeerStreamIterator._parse(buffer)
+                        if decoded:
+                            yield decoded 
 
-
-# async def main():
-#     reader, writer = await asyncio.open_connection('37.187.109.201', 64802)
-#     async for i in PeerStreamIterator(reader,b'').iterate():
-#         print('Tick',i)
-
-# loop = asyncio.get_event_loop()
-# loop.run_until_complete(main())
+            except ConnectionResetError:
+                print('Connection terminated by peer')

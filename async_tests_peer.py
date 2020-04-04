@@ -11,7 +11,9 @@ import random
 from bitarray import bitarray
 
 
-
+async def _interested(writer):
+    writer.write(pack('>IB',1,2))
+    await writer.drain()
 
 
 def encode_handshake(info_hash,peer_id):
@@ -69,21 +71,21 @@ def _decode_bitfield(full_message):
 def _parse(buffer):
 
     def _get_data_len():
-        return int(unpack('>I',buffer[0:4])[0])
+        return int(unpack('>I',buffer[0][0:4])[0])
 
     def _get_message_id():
-        return int(unpack('>B',buffer[4:5])[0])
+        return int(unpack('>B',buffer[0][4:5])[0])
 
 
     def _consume():
         nonlocal buffer
-        buffer = buffer[4 + data_length:]
+        buffer[0] = buffer[0][4 + data_length:]
 
     def _get_full_message():
-        return buffer[:4 + data_length]
+        return buffer[0][:4 + data_length]
 
 
-    if(len(buffer) >= 4):
+    if(len(buffer[0]) >= 4):
         data_length = _get_data_len()
 
         #keepalive message is of zero length - should be ignored
@@ -92,7 +94,7 @@ def _parse(buffer):
             _consume()
             return None
 
-        if(len(buffer) - 4 >= data_length):
+        if(len(buffer[0]) - 4 >= data_length):
             message_id = _get_message_id()
 
             if message_id == 5:
@@ -101,6 +103,10 @@ def _parse(buffer):
                 complete_message = _get_full_message()
                 _consume()
                 return _decode_bitfield(complete_message)
+            
+            elif message_id == 1:
+                print('Unchoke')
+                return 'Unchoke'
             
             else: 
                 raise ProtocolError('Unknown message ID, cannot be decoded')
@@ -115,18 +121,18 @@ def _parse(buffer):
 async def iterate(reader, buffer):
     while(True):
         try:
-            data = await reader.read(1024)
+            data = await reader.read(10 * 1024)
             if data:
-                buffer += data
+                buffer[0] = buffer[0] + data
                 decoded = _parse(buffer)
                 if decoded:
                     yield decoded
             else:
                 print('Nothing received from the socket')
-                yield buffer
-                decoded = _parse(buffer)
-                if decoded:
-                    yield decoded 
+                if buffer[0]:
+                    decoded = _parse(buffer)
+                    if decoded:
+                        yield decoded 
 
         except ConnectionResetError:
             print('Connection terminated by peer')
@@ -144,20 +150,23 @@ async def main():
 
     peer_id = '-PC0001-' + ''.join([str(random.randint(0,9)) for _ in range(12)])
 
-    ip = '86.201.173.20'
-    port = '58888'
+    ip = '85.67.91.191'
+    port = '58774'
 
 
     reader, writer = await asyncio.open_connection(ip,port)
 
     print('Opened socket!')
 
-    buffer = await _handshake(reader, writer, info_hash, peer_id)
+    buffer = [await _handshake(reader, writer, info_hash, peer_id)]
 
-    print('Successfully handshaked, this is the buffer', buffer)
+    print('Successfully handshaked, this is the buffer', buffer[0])
+
+    await _interested(writer)
 
     async for message in iterate(reader, buffer):
-        print(message)
+        pass
+        # print(message)
 
 
 

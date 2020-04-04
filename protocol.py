@@ -89,7 +89,7 @@ class Handshake(PeerMessage):
 class Interested(PeerMessage):
     
     def encode(self):
-        return pack('>IB',1,PeerMessage.Interested)
+        return pack('>IB',1,2)
 
     @classmethod
     def decode(cls,data):
@@ -114,6 +114,8 @@ class BitField(PeerMessage):
         pass
 
     @classmethod
-    def decode(cls,data):
-        len_field = int(unpack('>I',buffer[0:4])[0])
-        return cls(unpack('>' + str(len_field - 1) + 's',buffer[5:])[0])
+    def decode(cls,full_message):
+        len_field = int(unpack('>I',full_message[0:4])[0])
+        a = bitarray()
+        a.frombytes(unpack('>' + str(len_field - 1) + 's',full_message[5:])[0])
+        return cls(a)
