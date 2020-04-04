@@ -9,7 +9,7 @@ class ProtocolError(BaseException):
 
 class PeerConnection:
 
-    def __init__(self, common_peer_queue, info_hash, my_peer_id):
+    def __init__(self, common_peer_queue, info_hash, piece_manager, my_peer_id):
         self.common_peer_queue = common_peer_queue
         self.remote_peer_id = None
         self.info_hash = info_hash
@@ -17,6 +17,7 @@ class PeerConnection:
         self.states = []
         self.reader = None
         self.writer = None
+        self.piece_manager = piece_manager
         self.connection = asyncio.ensure_future(self._start_connection())
 
 
@@ -30,18 +31,44 @@ class PeerConnection:
             return None
         
         buffer = [await self._handshake()]
-        print('Handshake successful for',ip,port)
+        print('Handshake successful for ',ip,port)
         
         self.states.append('choked')
 
         await self._send_interested()
 
+        self.states.append('interested')
+
         async for message in PeerStreamIterator.iterate(self.reader, buffer):
             if type(message) is BitField:
                 peer_bitfield = message.bitfield
-                print('Bitfield message received') 
+                print('Bitfield message received from',ip,port) 
             elif type(message) is Unchoke:
-                print('Unchoke received')
+                if 'choked' in self.states:
+                    self.states.remove('choked')
+                print('Unchoke received from ',ip,port)
+            elif type(message) is Choke:
+                if 'choked' not in self.states:
+                    self.states.append('choked')    
+                print('Choke received from ',ip,port)
+            # else
+            #     if 'choked' not in self.states:
+            #         if 'interested' in self.states:
+            #             if 'pending_request' not in self.states:
+            #                 self.states.append('pending_request')
+            #                 #await self._request_piece()
+
+
+
+    async def _request_piece(self):
+        block = self.piece_manager.next_request(self.remote_peer_id)
+
+        if block :
+            pass
+            #encode the request using the block's variables
+            #drain writer
+
+
 
                 
     async def _handshake(self):

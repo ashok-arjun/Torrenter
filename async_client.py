@@ -1,6 +1,8 @@
 """
 Stage 1: Implement N peer connections and see if all of them are performing the handshake automatically. Also decode their bitfield messages and see if they work.
-Stage 2: Handshake limit - to reduce the traffic
+Stage 2: Handshake limit - to reduce the traffic. Requesting pieces and receiving them.
+
+
 """
 
 from own_bencoding import Encoder, Decoder
@@ -38,6 +40,13 @@ async def main():
     name = info[b'name']
     piece_length = info[b'piece length']
     pieces_hash = info[b'pieces']
+
+
+    """
+    Create a single instance of piece_manager from the above data
+    """
+
+    
 
 
     """
@@ -103,7 +112,10 @@ async def main():
     for peer in peer_list:
         peer_queue.put_nowait(peer)
 
-    peer_connections = [PeerConnection(peer_queue,info_hash,peer_id) for peer in peer_list[:1]]
+
+    MAX_PEER_CONNECTIONS = 40
+
+    peer_connections = [PeerConnection(peer_queue,info_hash,peer_id) for peer in peer_list[:MAX_PEER_CONNECTIONS]]
     
     while(True):
         #now it stops executing this function, and starts executing the waiting tasks(the _start_connection() functions of all the peers)
