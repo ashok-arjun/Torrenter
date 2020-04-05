@@ -109,7 +109,8 @@ def _parse(buffer):
                 return 'Unchoke'
             
             else: 
-                raise ProtocolError('Unknown message ID, cannot be decoded')
+                print('Unknown message ID, cannot be decoded', message_id)
+                return None
 
         else:
             return None       
@@ -150,8 +151,8 @@ async def main():
 
     peer_id = '-PC0001-' + ''.join([str(random.randint(0,9)) for _ in range(12)])
 
-    ip = '85.67.91.191'
-    port = '58774'
+    ip = '184.55.137.108'
+    port = '50061'
 
 
     reader, writer = await asyncio.open_connection(ip,port)

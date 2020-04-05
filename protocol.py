@@ -137,6 +137,25 @@ class Request(PeerMessage):
                     self.blockOffset,
                     self.blockLength)
 
-    @staticmethod
+    @classmethod
     def decode(cls,data):
         pass
+
+
+
+
+class Piece(PeerMessage):
+    def __init__(self, piece_index, block_offset, block_data):
+        self.piece_index = int(piece_index)
+        self.block_offset = int(block_offset)
+        self.block_data = block_data
+
+    def encode(self):
+        pass
+
+    @classmethod
+    def decode(cls, message):
+        response_length = int(unpack('>I',message[0:4])[0])
+        block_length = int(response_length - 9)
+        response_payload = unpack('>II' + str(block_length) + 's',message[5:])
+        return cls(response_payload[0],response_payload[1],response_payload[2])

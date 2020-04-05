@@ -200,29 +200,31 @@
 
 
 
-import asyncio
+# import asyncio
 
-class Ticker:
+# class Ticker:
 
     
 
-    def __init__(self):
-        self.delay = 1
-        self.to = 10
+#     def __init__(self):
+#         self.delay = 1
+#         self.to = 10
 
-    async def ticker(self,delay, to):
-        """Yield numbers from 0 to `to` every `delay` seconds."""
-        i = 1
-        while(True):
-            print('While')
-            yield i
-            await asyncio.sleep(delay)
+#     async def ticker(self,delay, to):
+#         """Yield numbers from 0 to `to` every `delay` seconds."""
+#         i = 1
+#         while(True):
+#             print('While')
+#             yield i
+#             await asyncio.sleep(delay)
 
 
-async def main():
-    ticker = Ticker()
-    async for i in ticker.ticker(1,10):
-        print('Tick',i)
+# async def main():
+#     ticker = Ticker()
+#     async for i in ticker.ticker(1,10):
+#         print('Tick',i)
 
-loop = asyncio.get_event_loop()
-loop.run_until_complete(main())
+# loop = asyncio.get_event_loop()
+# loop.run_until_complete(main())
+
+from bitarray import bitarray 

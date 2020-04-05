@@ -1,7 +1,7 @@
 """
 Stage 1: Implement N peer connections and see if all of them are performing the handshake automatically. Also decode their bitfield messages and see if they work.
 Stage 2: Handshake limit - to reduce the traffic. Requesting pieces and receiving them.
-
+Stage 3: UDP tracker
 
 """
 
@@ -27,7 +27,7 @@ async def main():
     """
     Open torrent, bdecode the data
     """
-    with open('SAMPLE.torrent','rb') as torrent_file:
+    with open('ubuntu.torrent','rb') as torrent_file:
         torrent = torrent_file.read()
         torrent_data = Decoder(torrent).decode()
         info = torrent_data[b'info']
@@ -77,7 +77,7 @@ async def main():
     'port': 6889,
     'uploaded': 0,
     'downloaded': 0,
-    'left': length,
+    'left': total_length,
     'compact': 1
     }
 
@@ -126,17 +126,13 @@ async def main():
         peer_queue.put_nowait(peer)
 
 
-    MAX_PEER_CONNECTIONS = 40
+    MAX_PEER_CONNECTIONS = 5
 
-    peer_connections = [PeerConnection(peer_queue,info_hash,peer_id) for peer in peer_list[:MAX_PEER_CONNECTIONS]]
-    
+    peer_connections = [PeerConnection(peer_queue,info_hash,piece_manager,peer_id) for peer in peer_list[:MAX_PEER_CONNECTIONS]]
+
     while(True):
         #now it stops executing this function, and starts executing the waiting tasks(the _start_connection() functions of all the peers)
         await asyncio.sleep(20)
-
-
-
-
 
     return None
 
