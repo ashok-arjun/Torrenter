@@ -16,6 +16,10 @@ class Block:
 		self.state = Block.BlockMissing
 		self.data = b''
 
+	@classmethod
+	def _from_peer_response(cls,response):
+		return cls(response.piece_index,response.block_offset,response.block_data)
+
 class Piece:
 
 
@@ -39,6 +43,8 @@ class Piece:
 		"""
 		Decode the block offset, and store the data in the block and change the state to Present
 		"""
+
+
 		for block in self.blocks:
 			if block.offset == received_block.offset:
 				block.state = Block.BlockPresent
@@ -153,12 +159,12 @@ class PieceManager:
 		return None
 
 
-	def _check_block_integrity(self, block, request):
+	def _check_block_integrity(self, response, request):
 		"""
 		Checks if the requested parameters are satisfied in the received block
 		:return True if satisfied, False otherwise
 		"""
-		if (block.piece_index == request.pieceIndex) and (block.offset == request.blockOffset) and (len(block.data) == request.blockLength):
+		if (response.piece_index == request.pieceIndex) and (response.block_offset == request.blockOffset) and (len(response.block_data) == request.blockLength):
 			return True
 		else:
 			return False
@@ -167,30 +173,29 @@ class PieceManager:
 		"""
 		This is called from PeerConnection, whenever a Block is received.
 
-		0. Typecast this into a block
 		1. Check block integrity
 		2. Access the piece, and persist the block onto the piece(using Piece._receive_block)
 		3. Check if the piece is complete
 		4. If yes, compute the hash of the piece and compare it with the actual_hash, and if they are equal, transfer piece from ongoing_pieces to full_pieces write the piece to memory
 		"""
-		
-		#0
-		received_block = Block(message.piece_index, message.block_offset, message.block_data)
 		#1
-		if self._check_block_integrity(received_block, corresponding_request) == False:
+		if self._check_block_integrity(message, corresponding_request) == False:
+			print('This block does not correspond to the previous request. Rejecting it.')
 			return None
+
 
 		#2
 		flag = False
 		for ongoing_index,piece in enumerate(self.ongoing_pieces):
-			if piece.index == received_block.piece_index:
+			if piece.index == message.piece_index:
 				flag = True
 				break
 
 		if flag == False:
+			print('No ongoing piece corresponds to the recieved piece')
 			return None
 
-		piece._receive_block(received_block)
+		piece._receive_block(Block._from_peer_response(message))
 
 		#3 & 4
 		if piece.all_blocks_received():
@@ -205,6 +210,7 @@ class PieceManager:
 				piece._clear_piece()
 				self.ongoing_pieces.pop(ongoing_index)
 				self.missing_pieces.append(piece)
+
 
 	def _peer_connection_closed(self, peer_id, pending_request):
 		"""

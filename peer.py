@@ -56,7 +56,7 @@ class PeerConnection:
 
             elif type(message) is Piece:
                 print('Received requested block from peer',ip,port)
-                # self.piece_manager._receive_block(message, pending_request)
+                self.piece_manager._receive_block(message, self.pending_request)
                 print('Passed the received block to piece manager',ip,port)
                 # pending_request = None 
 
