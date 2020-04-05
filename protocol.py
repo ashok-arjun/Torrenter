@@ -119,3 +119,24 @@ class BitField(PeerMessage):
         a = bitarray()
         a.frombytes(unpack('>' + str(len_field - 1) + 's',full_message[5:])[0])
         return cls(a)
+
+
+
+class Request(PeerMessage):
+
+    def __init__(self, pieceIndex, blockOffset, blockLength):
+        self.pieceIndex = int(pieceIndex)
+        self.blockOffset = int(blockOffset)
+        self.blockLength = int(blockLength)
+
+    def encode(self):
+        return pack('>IBIII',
+                    13,
+                    6,
+                    self.pieceIndex,
+                    self.blockOffset,
+                    self.blockLength)
+
+    @staticmethod
+    def decode(cls,data):
+        pass

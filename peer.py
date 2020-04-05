@@ -13,13 +13,13 @@ class PeerConnection:
         self.common_peer_queue = common_peer_queue
         self.remote_peer_id = None
         self.info_hash = info_hash
-        self.my_peer_id = my_peer_id
+        self.my_peer_id = my_peer_id #only for the purpose of handshaking
         self.states = []
         self.reader = None
         self.writer = None
         self.piece_manager = piece_manager
         self.connection = asyncio.ensure_future(self._start_connection())
-
+        self.pending_request = None
 
     async def _start_connection(self):
         ip, port = await self.common_peer_queue.get()
@@ -41,35 +41,47 @@ class PeerConnection:
 
         async for message in PeerStreamIterator.iterate(self.reader, buffer):
             if type(message) is BitField:
-                peer_bitfield = message.bitfield
+                piece_manager.update_peer(self.remote_peer_id, message.bitfield)
                 print('Bitfield message received from',ip,port) 
+            
             elif type(message) is Unchoke:
                 if 'choked' in self.states:
                     self.states.remove('choked')
                 print('Unchoke received from ',ip,port)
+            
             elif type(message) is Choke:
                 if 'choked' not in self.states:
                     self.states.append('choked')    
                 print('Choke received from ',ip,port)
+
+            elif type(message) is Piece:
+                self.piece_manager._receive_block(message, pending_request)
+                pending_request = None 
             # else
             #     if 'choked' not in self.states:
             #         if 'interested' in self.states:
-            #             if 'pending_request' not in self.states:
-            #                 self.states.append('pending_request')
+            #             if !pending_request:
             #                 #await self._request_piece()
 
+
+        """
+        Handle ConnectionTerminated error here,
+        close the socket - and call PieceManager._peer_connection_closed to shift that piece to missing from ongoing
+        """
+
+        """
+        Add checking for stale requests - either  re-request the piece or request some other piece
+        """
 
 
     async def _request_piece(self):
         block = self.piece_manager.next_request(self.remote_peer_id)
-
+    
         if block :
-            pass
-            #encode the request using the block's variables
-            #drain writer
-
-
-
+            message = Request(block.piece_index,block.offset,block.block_length)
+            self.pending_request = message
+            self.writer.write(message.encode())
+            await self.writer.drain()
                 
     async def _handshake(self):
         self.writer.write(Handshake(self.info_hash, self.my_peer_id).encode())

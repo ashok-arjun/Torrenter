@@ -17,6 +17,8 @@ from peer import PeerConnection
 from pprint import pprint
 
 
+from classes import PieceManager
+
 def _decode_port(binary_port):
     return unpack('>H',binary_port)[0]
 
@@ -25,7 +27,7 @@ async def main():
     """
     Open torrent, bdecode the data
     """
-    with open('ubuntu.torrent','rb') as torrent_file:
+    with open('SAMPLE.torrent','rb') as torrent_file:
         torrent = torrent_file.read()
         torrent_data = Decoder(torrent).decode()
         info = torrent_data[b'info']
@@ -36,17 +38,28 @@ async def main():
     """
     Get items from info dictionary
     """
-    length = info[b'length']
+    total_length = info[b'length']
     name = info[b'name']
     piece_length = info[b'piece length']
-    pieces_hash = info[b'pieces']
+    pieces_hash_concatenated = info[b'pieces']
+
+
+    """
+    Split the concatenated pieces_hash into a list of pieces_hash
+    """
+    pieces_hash = []
+
+    offset = 0
+    while(offset < len(pieces_hash_concatenated)):
+        pieces_hash.append(pieces_hash_concatenated[offset:offset + 20])
+        offset += 20
 
 
     """
     Create a single instance of piece_manager from the above data
     """
 
-    
+    piece_manager = PieceManager(pieces_hash,piece_length,total_length,name)
 
 
     """

@@ -2,7 +2,6 @@ class Block:
 
 	BlockMissing = 0
 	BlockPresent = 1
-	BlockPending = 2
 
 	def __init__(self, piece_index, block_offset, block_length):
 		self.piece_index = piece_index
@@ -14,21 +13,23 @@ class Block:
 
 class Piece:
 
-	PieceMissing = 0
-	PiecePresent = 1
-	PiecePending = 2
 
 	def __init__(self, piece_hash, piece_index, blocks):
 		self.index = piece_index
 		self.hash = piece_hash
 		self.blocks = blocks
-		self.state = Piece.PieceMissing
 
 	def _get_next_block(self):
-		#return the next missing block in the blocks list
+		"""
+		Return: the next block in order for the piece
+		"""
+		pass
 
 	def _receive_block(self, block):
-		#receive the block, store the data with the offset in the particular index of this piece
+		"""
+		Decode the block offset, and store the data in the block and change the state to Missing
+		"""
+		pass
 
 
 class PieceManager:
@@ -37,8 +38,10 @@ class PieceManager:
 		self.piece_length = piece_length
 		self.total_length = total_length
 		self.file_name = file_name
-		self.peers = {}
-		self.pieces = []
+		self.peer_bitfields = {}
+		self.missing_pieces = []
+		self.ongoing_pieces = []
+		self.full_pieces = []
 		self._initialise_pieces()
 
 
@@ -72,20 +75,57 @@ class PieceManager:
 				block_index += 1
 
 
-			self.pieces.append(Piece(piece_hash,piece_index,blocks))
+			self.missing_pieces.append(Piece(piece_hash,piece_index,blocks))
 
+	def update_peer(self,peer_id, bitfield):
+		self.peer_bitfields[peer_id] = bitfield
 
-	def _add_peer(self, peer_id):
-		#add peer called from PeerConnection, called with empty bitfield, then bitfield is added later
+	def next_request(self, peer_id):
+		"""
+		1. Check for ongoing pieces
+		3. If no, get the next piece for the peer
+		4. Get the next block for that piece
+		5. Return that block
 
-	def update_peer(self,peer_id):
-		#set the peer's bitfield
+		Return none, if no block can be requested for this peer
+		"""
 
-	def _get_next_piece(self, peer_id):
-		#get the next piece of this particular peer by decoding the bitfield
+		pass
 
-	def _receive_block(self, peer_id, piece_index, block_offset, data):
-		#receive the block, and mark it completed in the piece, and check if the piece is over and hash is matching
+	def _ongoing_piece(self, peer_id):
+		"""
+		returns the peer's ongoing piece or NULL
+		"""
+		
+		pass 
 
-	def _peer_connection_closed(self, peer_id):
-		#delete the blocks of the peer's piece and 
+	def _next_piece(self,peer_id):
+		"""
+		returns the next piece that can be requested from the peer
+		"""
+		pass	
+
+	def _check_block_integrity(self, block, request):
+		"""
+		Checks if the requested parameters are satisfied in the received block
+		:return True if satisfied, False otherwise
+		"""
+		pass
+
+	def _receive_block(self, block):
+		"""
+		This is called from PeerConnection, whenever a Block is received.
+
+		1. Check block integrity
+		2. Access the piece, and persist the block onto the piece(using Piece._receive_block)
+		3. Check if the piece is complete
+		4. If yes, compute the hash of the piece and compare it with the actual_hash, and if they are equal, transfer piece from ongoing_pieces to full_pieces write the piece to memory
+		"""
+		pass
+
+	def _peer_connection_closed(self, peer_id, pending_request):
+		"""
+		Remove the peer from the peer dictionary, and if there is a pending request for the peer, decode the request, transfer 
+		that PIECE from pending to missing, clear the piece.
+		"""
+		pass
