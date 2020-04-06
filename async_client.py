@@ -1,7 +1,8 @@
 """
 Stage 1: Implement N peer connections and see if all of them are performing the handshake automatically. Also decode their bitfield messages and see if they work.
-Stage 2: Handshake limit - to reduce the traffic. Requesting pieces and receiving them.
-Stage 3: UDP tracker
+Stage 2: Handshake limit - to reduce the traffic. Requesting pieces and receiving them. Check if full pieces are being received, persist them to file.
+Stage 3: Multi file torrents
+Stage 4: Uploading
 
 """
 
@@ -42,7 +43,6 @@ async def main():
     name = info[b'name']
     piece_length = info[b'piece length']
     pieces_hash_concatenated = info[b'pieces']
-
 
     """
     Split the concatenated pieces_hash into a list of pieces_hash
@@ -126,7 +126,7 @@ async def main():
         peer_queue.put_nowait(peer)
 
 
-    MAX_PEER_CONNECTIONS = 5
+    MAX_PEER_CONNECTIONS = 1
 
     peer_connections = [PeerConnection(peer_queue,info_hash,piece_manager,peer_id) for peer in peer_list[:MAX_PEER_CONNECTIONS]]
 

@@ -5,20 +5,16 @@ class Block:
 	BlockMissing = 0
 	BlockPresent = 1
 
-	def __init__(self, piece_index, block_offset, block_length):
+	def __init__(self, piece_index, block_offset, block_length,data = b''):
 		self.piece_index = piece_index
 		self.offset = block_offset
 		self.block_length = block_length
 		self.state = Block.BlockMissing
-		self.data = b''
+		self.data = data
 
 	def _clear_block(self):
 		self.state = Block.BlockMissing
 		self.data = b''
-
-	@classmethod
-	def _from_peer_response(cls,response):
-		return cls(response.piece_index,response.block_offset,response.block_data)
 
 class Piece:
 
@@ -39,16 +35,16 @@ class Piece:
 				return block
 		return None
 	
-	def _receive_block(self, received_block):
+	def _receive_block_from_response(self, response_message):
 		"""
 		Decode the block offset, and store the data in the block and change the state to Present
 		"""
 
-
 		for block in self.blocks:
-			if block.offset == received_block.offset:
+			if block.offset == response_message.block_offset:
 				block.state = Block.BlockPresent
-				block.data = received_block.data
+				block.data = response_message.block_data
+				break
 		return None
 
 	def _clear_piece(self):
@@ -64,9 +60,11 @@ class Piece:
 		return True
 
 	def hash_verified(self):
-		blocks_data = [block.data for block in sorted(self.blocks, key = lambda x: x.offset)]
-		total_data = b''.join(self.blocks.data)
-		if sha1(total_data).digest() == self.hash:
+		total_data = b''
+		for block in self.blocks:
+			total_data += block.data
+		computed_hash = sha1(total_data).digest()
+		if computed_hash == self.hash:
 			return True
 		else:
 			return False
@@ -195,18 +193,21 @@ class PieceManager:
 			print('No ongoing piece corresponds to the recieved piece')
 			return None
 
-		piece._receive_block(Block._from_peer_response(message))
+		piece._receive_block_from_response(message)
 
 		#3 & 4
 		if piece.all_blocks_received():
+			print('Piece is full',piece.index)
 			if piece.hash_verified():
+				print('Piece is verified by hashing',piece.index)
 				self.ongoing_pieces.pop(ongoing_index)
 				self.full_pieces.append(piece)
 
-				#check whether all the pieces are completed
 
 				#persist to file
+
 			else:
+				print('Piece rejected in hashing')
 				piece._clear_piece()
 				self.ongoing_pieces.pop(ongoing_index)
 				self.missing_pieces.append(piece)

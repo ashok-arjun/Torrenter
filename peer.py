@@ -42,23 +42,22 @@ class PeerConnection:
         async for message in PeerStreamIterator.iterate(self.reader, buffer):
             if type(message) is BitField:
                 self.piece_manager.update_peer(self.remote_peer_id, message.bitfield)
-                print('Bitfield message received from',ip,port) 
+                print('Bitfield message received from',self.remote_peer_id) 
             
             elif type(message) is Unchoke:
                 if 'choked' in self.states:
                     self.states.remove('choked')
-                print('Unchoke received from ',ip,port)
+                print('Unchoke received from ',self.remote_peer_id)
 
             elif type(message) is Choke:
                 if 'choked' not in self.states:
                     self.states.append('choked')    
-                print('Choke received from ',ip,port)
+                print('Choke received from ',self.remote_peer_id)
 
             elif type(message) is Piece:
-                print('Received requested block from peer',ip,port)
                 self.piece_manager._receive_block(message, self.pending_request)
-                print('Passed the received block to piece manager',ip,port)
-                # pending_request = None 
+                print('Passed the received block to piece manager',self.remote_peer_id)
+                self.pending_request = None 
 
             elif type(message) is Have:
                 print('Have message has been received',ip,port)
@@ -67,7 +66,6 @@ class PeerConnection:
             if 'choked' not in self.states:
                 if 'interested' in self.states:
                     if self.pending_request == None:
-                        print('Requesting a block from peer',ip,port)
                         await self._request_piece()
 
         """
@@ -84,6 +82,7 @@ class PeerConnection:
 
     async def _request_piece(self):
         block = self.piece_manager.next_request(self.remote_peer_id)
+        print('Requesting block',block.piece_index,block.offset,block.block_length,' from peer', self.remote_peer_id)
         if block :
             message = Request(block.piece_index,block.offset,block.block_length)
             self.pending_request = message
