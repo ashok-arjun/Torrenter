@@ -1,4 +1,9 @@
+import asyncio
+import aiofiles as aiof
+import os
+
 from hashlib import sha1
+
 
 class Block:
 
@@ -19,10 +24,11 @@ class Block:
 class Piece:
 
 
-	def __init__(self, piece_hash, piece_index, blocks):
+	def __init__(self, piece_hash, piece_index, piece_length, blocks):
 		self.index = piece_index
 		self.hash = piece_hash
 		self.blocks = blocks
+		self.length = piece_length
 		self.sending_peer = None
 
 	def _get_next_block(self):
@@ -60,14 +66,19 @@ class Piece:
 		return True
 
 	def hash_verified(self):
-		total_data = b''
-		for block in self.blocks:
-			total_data += block.data
-		computed_hash = sha1(total_data).digest()
+		computed_hash = sha1(self.data).digest()
 		if computed_hash == self.hash:
 			return True
 		else:
 			return False
+
+
+	@property
+	def data(self):
+		total_data = b''
+		for block in self.blocks:
+			total_data += block.data
+		return total_data
 
 
 class PieceManager:
@@ -82,6 +93,9 @@ class PieceManager:
 		self.full_pieces = []
 		self._initialise_pieces()
 
+	async def initialise_file_pointer(self):
+		mode = 'rb+' if os.path.exists(self.file_name) else 'wb+'
+		self.file_pointer = await aiof.open(self.file_name, mode)
 
 	def _initialise_pieces(self):
 		"""
@@ -113,7 +127,7 @@ class PieceManager:
 				block_index += 1
 
 
-			self.missing_pieces.append(Piece(piece_hash,piece_index,blocks))
+			self.missing_pieces.append(Piece(piece_hash,piece_index,piece_length,blocks))
 
 	def update_peer(self,peer_id, bitfield):
 		self.peer_bitfields[peer_id] = bitfield
@@ -167,7 +181,7 @@ class PieceManager:
 		else:
 			return False
 
-	def _receive_block(self, message, corresponding_request):
+	async def _receive_block(self, message, corresponding_request):
 		"""
 		This is called from PeerConnection, whenever a Block is received.
 
@@ -197,21 +211,22 @@ class PieceManager:
 
 		#3 & 4
 		if piece.all_blocks_received():
-			print('Piece is full',piece.index)
 			if piece.hash_verified():
-				print('Piece is verified by hashing',piece.index)
 				self.ongoing_pieces.pop(ongoing_index)
 				self.full_pieces.append(piece)
-
-
-				#persist to file
-
+				print('Writing piece to file')
+				await self.write_piece_to_file(piece)
+				print('Finished writing piece to file')
 			else:
-				print('Piece rejected in hashing')
 				piece._clear_piece()
 				self.ongoing_pieces.pop(ongoing_index)
 				self.missing_pieces.append(piece)
 
+
+	async def write_piece_to_file(self, piece):
+		file_offset = piece.index * piece.length
+		await self.file_pointer.seek(file_offset,0)
+		await self.file_pointer.write(piece.data)
 
 	def _peer_connection_closed(self, peer_id, pending_request):
 		"""

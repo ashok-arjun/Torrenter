@@ -43,7 +43,7 @@ Open the torrent file and decode the data, and compute the sha1 hash of the info
 """
 def main():
 
-	with open('ubuntu.torrent','rb') as torrent_file:
+	with open('TinyCore-8.1.iso.torrent','rb') as torrent_file:
 		torrent = torrent_file.read()
 		torrent_data = bencoding.Decoder(torrent).decode()
 		info = torrent_data[b'info']
@@ -136,8 +136,9 @@ def main():
 
 	# Now open a socket for this peer and send this handshake and get a reply
 
+	print(peer_list[-1])
 
-	s = socket.create_connection(peer_list[0],timeout=10)
+	s = socket.create_connection(peer_list[-1],timeout=100)
 	# s.setblocking(False)
 
 
@@ -210,12 +211,6 @@ def main():
 			if 'pending_request' not in connection_state:
 				pass
 				#request a piece's block from the peer
-
-
-
-	
-
-
 
 	return None
 

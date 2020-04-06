@@ -18,8 +18,8 @@ class PeerConnection:
         self.reader = None
         self.writer = None
         self.piece_manager = piece_manager
-        self.connection = asyncio.ensure_future(self._start_connection())
         self.pending_request = None
+        self.connection = asyncio.ensure_future(self._start_connection())
 
     async def _start_connection(self):
         ip, port = await self.common_peer_queue.get()
@@ -55,7 +55,7 @@ class PeerConnection:
                 print('Choke received from ',self.remote_peer_id)
 
             elif type(message) is Piece:
-                self.piece_manager._receive_block(message, self.pending_request)
+                await self.piece_manager._receive_block(message, self.pending_request)
                 print('Passed the received block to piece manager',self.remote_peer_id)
                 self.pending_request = None 
 

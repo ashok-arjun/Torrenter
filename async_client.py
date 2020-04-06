@@ -23,12 +23,17 @@ from classes import PieceManager
 def _decode_port(binary_port):
     return unpack('>H',binary_port)[0]
 
+async def _create_piece_manager(pieces_hash,piece_length,total_length,name):
+    piece_manager = PieceManager(pieces_hash,piece_length,total_length,name)
+    await piece_manager.initialise_file_pointer()
+    return piece_manager
+
 
 async def main():
     """
     Open torrent, bdecode the data
     """
-    with open('ubuntu.torrent','rb') as torrent_file:
+    with open('TinyCore-8.1.iso.torrent','rb') as torrent_file:
         torrent = torrent_file.read()
         torrent_data = Decoder(torrent).decode()
         info = torrent_data[b'info']
@@ -59,8 +64,7 @@ async def main():
     Create a single instance of piece_manager from the above data
     """
 
-    piece_manager = PieceManager(pieces_hash,piece_length,total_length,name)
-
+    piece_manager = await _create_piece_manager(pieces_hash,piece_length,total_length,name)
 
     """
     Create peer ID
@@ -94,6 +98,8 @@ async def main():
     response = requests.get(url)
     response = Decoder(response.content).decode()
 
+    print(response,len(response[b'peers']))
+
     if b'failure reason' in response:
         print('Tracker request failed!')
     else:
@@ -115,7 +121,6 @@ async def main():
     num_peers = len(peer_list)
     peer_list = [(socket.inet_ntoa(p[0:4]),_decode_port(p[4:])) for p in peer_list]
 
-
     """
     We have the list of peers.
     Now we have to create num_peers PeerConnection instances, which will automatically asynchronouly perform handshake and print the bitfield
@@ -125,8 +130,7 @@ async def main():
     for peer in peer_list:
         peer_queue.put_nowait(peer)
 
-
-    MAX_PEER_CONNECTIONS = 1
+    MAX_PEER_CONNECTIONS = len(peer_list)
 
     peer_connections = [PeerConnection(peer_queue,info_hash,piece_manager,peer_id) for peer in peer_list[:MAX_PEER_CONNECTIONS]]
 
