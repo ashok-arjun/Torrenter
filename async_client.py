@@ -1,8 +1,10 @@
 """
 Stage 1: Implement N peer connections and see if all of them are performing the handshake automatically. Also decode their bitfield messages and see if they work.
-Stage 2: Handshake limit - to reduce the traffic. Requesting pieces and receiving them. Check if full pieces are being received, persist them to file.
-Stage 3: Multi file torrents
-Stage 4: Uploading
+Stage 2: Requesting pieces and receiving them. Check if full pieces are being received, persist them to file. 
+Stage 3: Check if asyncio is working with multiple peers and multiple pieces. 
+Stage 4: Add frequent tracker requests + torrent completion, exceptions and time checking. If possible, add GUI for percentage completed.
+Stage 5: Multi file torrents + Rarest piece first algorithm + Try to improve speeds
+Stage 6: Uploading(seeding)
 
 """
 
@@ -10,6 +12,7 @@ from own_bencoding import Encoder, Decoder
 import requests
 import socket
 import asyncio
+import uvloop
 from hashlib import sha1
 import random
 from urllib.parse import urlencode
@@ -149,7 +152,7 @@ async def main():
 
 
 
-
+uvloop.install()
 loop = asyncio.get_event_loop()
 loop.run_until_complete(main())
 loop.close()

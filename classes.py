@@ -214,9 +214,8 @@ class PieceManager:
 			if piece.hash_verified():
 				self.ongoing_pieces.pop(ongoing_index)
 				self.full_pieces.append(piece)
-				print('Writing piece to file')
 				await self.write_piece_to_file(piece)
-				print('Finished writing piece to file')
+				print('Finished writing piece to file',piece.index)
 			else:
 				piece._clear_piece()
 				self.ongoing_pieces.pop(ongoing_index)

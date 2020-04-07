@@ -31,7 +31,7 @@ class PeerConnection:
             return None
 
         buffer = [await self._handshake()]
-        print('Handshake successful for ',ip,port)
+        # print('Handshake successful for ',ip,port)
         
         self.states.append('choked')
 
@@ -42,7 +42,7 @@ class PeerConnection:
         async for message in PeerStreamIterator.iterate(self.reader, buffer):
             if type(message) is BitField:
                 self.piece_manager.update_peer(self.remote_peer_id, message.bitfield)
-                print('Bitfield message received from',self.remote_peer_id) 
+                # print('Bitfield message received from',self.remote_peer_id) 
             
             elif type(message) is Unchoke:
                 if 'choked' in self.states:
@@ -56,7 +56,7 @@ class PeerConnection:
 
             elif type(message) is Piece:
                 await self.piece_manager._receive_block(message, self.pending_request)
-                print('Passed the received block to piece manager',self.remote_peer_id)
+                # print('Passed the received block to piece manager',self.remote_peer_id)
                 self.pending_request = None 
 
             elif type(message) is Have:
@@ -82,7 +82,7 @@ class PeerConnection:
 
     async def _request_piece(self):
         block = self.piece_manager.next_request(self.remote_peer_id)
-        print('Requesting block',block.piece_index,block.offset,block.block_length,' from peer', self.remote_peer_id)
+        # print('Requesting block',block.piece_index,block.offset,block.block_length,' from peer', self.remote_peer_id)
         if block :
             message = Request(block.piece_index,block.offset,block.block_length)
             self.pending_request = message
