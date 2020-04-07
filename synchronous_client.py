@@ -43,14 +43,15 @@ Open the torrent file and decode the data, and compute the sha1 hash of the info
 """
 def main():
 
-	with open('TinyCore-8.1.iso.torrent','rb') as torrent_file:
+	with open('BNN.torrent','rb') as torrent_file:
 		torrent = torrent_file.read()
 		torrent_data = bencoding.Decoder(torrent).decode()
 		info = torrent_data[b'info']
 		bencoded_info = bencoding.Encoder(info).encode()
 		info_hash = sha1(bencoded_info).digest()
 
-
+	pprint.pprint(info)
+	quit()
 	length = info[b'length']
 	name = info[b'name']
 	piece_length = info[b'piece length']

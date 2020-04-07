@@ -27,9 +27,9 @@ from classes import PieceManager
 def _decode_port(binary_port):
     return unpack('>H',binary_port)[0]
 
-async def _create_piece_manager(pieces_hash,piece_length,total_length,name):
-    piece_manager = PieceManager(pieces_hash,piece_length,total_length,name)
-    await piece_manager.initialise_file_pointer()
+async def _create_piece_manager(pieces_hash,piece_length,total_length,name, files):
+    piece_manager = PieceManager(pieces_hash,piece_length,total_length,name, files)
+    await piece_manager.initialise_file_pointers()
     return piece_manager
 
 
@@ -37,7 +37,7 @@ async def main():
     """
     Open torrent, bdecode the data
     """
-    with open('ubuntu.torrent','rb') as torrent_file:
+    with open('BNN.torrent','rb') as torrent_file:
         torrent = torrent_file.read()
         torrent_data = Decoder(torrent).decode()
         info = torrent_data[b'info']
@@ -48,8 +48,24 @@ async def main():
     """
     Get items from info dictionary
     """
-    total_length = info[b'length']
+    files = []
+    total_length = 0
     name = info[b'name']
+    if b'files' in info.keys():
+        #multi-file torrent
+        for file in info[b'files']:
+            len_file = file[b'length']
+            path_file = file[b'path']
+            files.append({'path': (name + b'/') + (b'/'.join(path_file)), 'length': len_file, 'file_offset': 0})
+            total_length += len_file
+    else:
+        #single-file torrent
+        total_length = info[b'length'] 
+        files.append({'path': name, 'length': total_length, 'file_offset': 0})
+
+    """
+    Pieces
+    """
     piece_length = info[b'piece length']
     pieces_hash_concatenated = info[b'pieces']
 
@@ -68,8 +84,8 @@ async def main():
     Create a single instance of piece_manager from the above data
     """
 
-    piece_manager = await _create_piece_manager(pieces_hash,piece_length,total_length,name)
-
+    piece_manager = await _create_piece_manager(pieces_hash,piece_length,total_length,name,files)
+    quit()
     """
     Create peer ID
     """

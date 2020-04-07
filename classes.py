@@ -82,22 +82,36 @@ class Piece:
 
 
 class PieceManager:
-	def __init__(self, pieces_hash, piece_length, total_length, file_name):
+	def __init__(self, pieces_hash, piece_length, total_length, directory_name, files):
 		self.pieces_hash = pieces_hash
 		self.piece_length = piece_length
 		self.total_length = total_length
-		self.file_name = file_name
+		self.directory_name = directory_name
 		self.peer_bitfields = {}
 		self.missing_pieces = []
 		self.ongoing_pieces = []
 		self.full_pieces = []
+
+		self.files = files
+
 		self.start_time = time()
 		self.downloaded_bytes = 0
 		self._initialise_pieces()
 
-	async def initialise_file_pointer(self):
-		mode = 'rb+' if os.path.exists(self.file_name) else 'wb+'
-		self.file_pointer = await aiof.open(self.file_name, mode)
+	async def initialise_file_pointers(self):
+
+		self.file_pointers = []
+
+		if len(self.files) > 1:
+			os.makedirs(self.directory_name,exist_ok=True)	
+
+		for file in self.files:
+			parent_dir = os.path.dirname(file['path'])
+			if parent_dir != b'':
+				os.makedirs(parent_dir,exist_ok=True)
+			mode = 'rb+' if os.path.exists(file['path']) else 'wb+'
+			self.file_pointers.append(await aiof.open(file['path'],mode))
+
 
 	def _initialise_pieces(self):
 		"""
@@ -228,8 +242,8 @@ class PieceManager:
 
 	async def write_piece_to_file(self, piece):
 		file_offset = piece.index * piece.length
-		await self.file_pointer.seek(file_offset,0)
-		await self.file_pointer.write(piece.data)
+		# await self.file_pointer.seek(file_offset,0)
+		# await self.file_pointer.write(piece.data)
 
 	def _peer_connection_closed(self, peer_id, pending_request):
 		"""
