@@ -159,3 +159,14 @@ class Piece(PeerMessage):
         block_length = int(response_length - 9)
         response_payload = unpack('>II' + str(block_length) + 's',message[5:])
         return cls(response_payload[0],response_payload[1],response_payload[2])
+
+
+
+class Have(PeerMessage):
+    
+    def __init__(self, piece_index):
+        self.piece_index = int(piece_index)
+    
+    @classmethod
+    def decode(cls, message):
+        return cls(unpack('>IBI',message)[2])        

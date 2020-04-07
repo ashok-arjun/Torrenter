@@ -1,7 +1,7 @@
 import asyncio
 import aiofiles as aiof
 import os
-
+from time import time 
 from hashlib import sha1
 
 
@@ -91,6 +91,8 @@ class PieceManager:
 		self.missing_pieces = []
 		self.ongoing_pieces = []
 		self.full_pieces = []
+		self.start_time = time()
+		self.downloaded_bytes = 0
 		self._initialise_pieces()
 
 	async def initialise_file_pointer(self):
@@ -129,9 +131,11 @@ class PieceManager:
 
 			self.missing_pieces.append(Piece(piece_hash,piece_index,piece_length,blocks))
 
-	def update_peer(self,peer_id, bitfield):
-		self.peer_bitfields[peer_id] = bitfield
-
+	def update_peer(self,peer_id, bitfield = b'', have = -1):
+		if(bitfield != b''):
+			self.peer_bitfields[peer_id] = bitfield
+		if(have != -1):
+			self.peer_bitfields[peer_id][have] = 1
 	def next_request(self, peer_id):
 		"""
 		1. Check for ongoing pieces
@@ -207,15 +211,15 @@ class PieceManager:
 			print('No ongoing piece corresponds to the recieved piece')
 			return None
 
+		self.downloaded_bytes += len(message.block_data)
 		piece._receive_block_from_response(message)
-
 		#3 & 4
 		if piece.all_blocks_received():
 			if piece.hash_verified():
 				self.ongoing_pieces.pop(ongoing_index)
 				self.full_pieces.append(piece)
 				await self.write_piece_to_file(piece)
-				print('Finished writing piece to file',piece.index)
+				# print('Finished writing piece to file',piece.index)
 			else:
 				piece._clear_piece()
 				self.ongoing_pieces.pop(ongoing_index)
@@ -233,4 +237,15 @@ class PieceManager:
 		that PIECE from pending to missing, clear the piece.
 		"""
 
+		del self.peer_bitfields[peer_id]
+		for i,piece in enumerate(self.ongoing_pieces):
+			if piece.index == pending_request.pieceIndex:
+				piece._clear_piece()
+				self.ongoing_pieces.pop(i)
+				self.missing_pieces.append(piece)
+				break
 		pass
+
+	def get_download_speed(self):
+		seconds_elapsed = time() - self.start_time
+		return self.downloaded_bytes/seconds_elapsed	

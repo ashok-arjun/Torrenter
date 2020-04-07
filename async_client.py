@@ -2,9 +2,10 @@
 Stage 1: Implement N peer connections and see if all of them are performing the handshake automatically. Also decode their bitfield messages and see if they work.
 Stage 2: Requesting pieces and receiving them. Check if full pieces are being received, persist them to file. 
 Stage 3: Check if asyncio is working with multiple peers and multiple pieces. 
-Stage 4: Add frequent tracker requests + torrent completion, exceptions and time checking. If possible, add GUI for percentage completed.
-Stage 5: Multi file torrents + Rarest piece first algorithm + Try to improve speeds
-Stage 6: Uploading(seeding)
+Stage 4: Multi file torrent downloading
+Stage 5: Add frequent tracker requests + torrent completion, add GUI for percentage completed.
+Stage 6: Rarest piece first algorithm + Try to improve speeds
+Stage 7: Uploading(seeding) - By sending listening, sending bitfields, unchokes, chokes, listening to requests, we already have an iterator
 
 """
 
@@ -19,7 +20,7 @@ from urllib.parse import urlencode
 from struct import unpack
 from peer import PeerConnection
 from pprint import pprint
-
+from time import time
 
 from classes import PieceManager
 
@@ -36,7 +37,7 @@ async def main():
     """
     Open torrent, bdecode the data
     """
-    with open('TinyCore-8.1.iso.torrent','rb') as torrent_file:
+    with open('ubuntu.torrent','rb') as torrent_file:
         torrent = torrent_file.read()
         torrent_data = Decoder(torrent).decode()
         info = torrent_data[b'info']
@@ -139,7 +140,8 @@ async def main():
 
     while(True):
         #now it stops executing this function, and starts executing the waiting tasks(the _start_connection() functions of all the peers)
-        await asyncio.sleep(20)
+        await asyncio.sleep(1)
+        print('Cumulative download speed: ',piece_manager.get_download_speed(),'bytes per second')
 
     return None
 
@@ -152,7 +154,14 @@ async def main():
 
 
 
-uvloop.install()
-loop = asyncio.get_event_loop()
-loop.run_until_complete(main())
+start_time = time()
+
+try:
+    uvloop.install()
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(main())
+except KeyboardInterrupt as e:
+    pass
+
+print('The torrent ran for ',time() - start_time,'seconds')
 loop.close()

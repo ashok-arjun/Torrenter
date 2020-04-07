@@ -21,62 +21,71 @@ class PeerConnection:
         self.pending_request = None
         self.connection = asyncio.ensure_future(self._start_connection())
 
+    async def _get_socket(self,ip,port):
+        fut = asyncio.open_connection(ip, port) 
+        self.reader, self.writer = await asyncio.wait_for(fut,timeout = 10)
+            
     async def _start_connection(self):
         ip, port = await self.common_peer_queue.get()
 
-        
         try:
-            self.reader, self.writer = await asyncio.open_connection(ip, port)
-        except ConnectionRefusedError:
-            return None
-
-        buffer = [await self._handshake()]
-        # print('Handshake successful for ',ip,port)
-        
-        self.states.append('choked')
-
-        await self._send_interested()
-
-        self.states.append('interested')
-
-        async for message in PeerStreamIterator.iterate(self.reader, buffer):
-            if type(message) is BitField:
-                self.piece_manager.update_peer(self.remote_peer_id, message.bitfield)
-                # print('Bitfield message received from',self.remote_peer_id) 
+            await self._get_socket(ip,port)
+            buffer = [await self._handshake()]
+            # print('Handshake successful for ',ip,port)
             
-            elif type(message) is Unchoke:
-                if 'choked' in self.states:
-                    self.states.remove('choked')
-                print('Unchoke received from ',self.remote_peer_id)
+            self.states.append('choked')
 
-            elif type(message) is Choke:
+            await self._send_interested()
+
+            self.states.append('interested')
+
+            async for message in PeerStreamIterator.iterate(self.reader, buffer):
+                if type(message) is BitField:
+                    self.piece_manager.update_peer(self.remote_peer_id, bitfield = message.bitfield)
+                    # print('Bitfield message received from',self.remote_peer_id) 
+                
+                elif type(message) is Unchoke:
+                    if 'choked' in self.states:
+                        self.states.remove('choked')
+                    # print('Unchoke received from ',self.remote_peer_id)
+
+                elif type(message) is Choke:
+                    if 'choked' not in self.states:
+                        self.states.append('choked')    
+                    # print('Choke received from ',self.remote_peer_id)
+
+                elif type(message) is Piece:
+                    await self.piece_manager._receive_block(message, self.pending_request)
+                    # print('Passed the received block to piece manager',self.remote_peer_id)
+                    self.pending_request = None 
+
+                elif type(message) is Have:
+                    self.piece_manager.update_peer(self.remote_peer_id, have = message.piece_index)
+                    # print('Have message has been received',ip,port)
+
+
                 if 'choked' not in self.states:
-                    self.states.append('choked')    
-                print('Choke received from ',self.remote_peer_id)
-
-            elif type(message) is Piece:
-                await self.piece_manager._receive_block(message, self.pending_request)
-                # print('Passed the received block to piece manager',self.remote_peer_id)
-                self.pending_request = None 
-
-            elif type(message) is Have:
-                print('Have message has been received',ip,port)
+                    if 'interested' in self.states:
+                        if self.pending_request == None:
+                            await self._request_piece()
 
 
-            if 'choked' not in self.states:
-                if 'interested' in self.states:
-                    if self.pending_request == None:
-                        await self._request_piece()
-
-        """
-        Handle ConnectionTerminated error here,
-        close the socket - and call PieceManager._peer_connection_closed to shift that piece to missing from ongoing
-        """
+        except asyncio.TimeoutError:
+            print('Timeout')
+        except (ConnectionRefusedError,ConnectionError):
+            print('Connection refused')
+        except ProtocolError as e:
+            print('Protocol error')
+        except (ConnectionResetError, asyncio.CancelledError):
+            print('Connection reset!')
+        except Exception as e:
+            print('Unknown error!')
+        self.cancel()
 
         """
         Add checking for stale requests - either  re-request the piece or request some other piece
         """
-
+ 
     
 
 
@@ -110,6 +119,8 @@ class PeerConnection:
         self.writer.write(Interested().encode())
         await self.writer.drain()
 
+    def cancel(self):
+        self.piece_manager._peer_connection_closed(self.remote_peer_id,self.pending_request)
 
 class PeerStreamIterator:
 
@@ -199,11 +210,20 @@ class PeerStreamIterator:
                     if decoded:
                         yield decoded
                 else:
-                    print('Nothing received from the socket')
+                    # print('Nothing received from the socket')
                     if buffer[0]:
                         decoded = PeerStreamIterator._parse(buffer)
                         if decoded:
                             yield decoded 
 
-            except ConnectionResetError:
+            except (ConnectionResetError,ConnectionError):
                 print('Connection terminated by peer')
+                raise StopAsyncIteration()
+            except CancelledError:
+                raise StopAsyncIteration()
+            except StopAsyncIteration as e:
+                raise e
+            except Exception as e:
+                raise StopAsyncIteration()
+
+        raise StopAsyncIteration()
