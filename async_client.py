@@ -6,7 +6,7 @@ Stage 4: Multi file torrent downloading
 Stage 5: Add frequent tracker requests + torrent completion, add GUI for percentage completed.
 Stage 6: Rarest piece first algorithm + Try to improve speeds
 Stage 7: Uploading(seeding) - By sending listening, sending bitfields, unchokes, chokes, listening to requests, we already have an iterator
-
+Stage 8: Resume and pause
 """
 
 from own_bencoding import Encoder, Decoder
