@@ -258,9 +258,15 @@ class PieceManager:
 
 
 	async def write_piece_to_file(self, piece):
-		file_offset = piece.index * piece.length
-		# await self.file_pointer.seek(file_offset,0)
-		# await self.file_pointer.write(piece.data)
+		data_offset = 0
+		for file in piece.files:
+			file_index = file['index']
+			file_offset = file['offset']
+			file_length = file['length']
+			file_pointer = self.file_pointers[file_index]
+			await file_pointer.seek(file_offset,0)
+			await file_pointer.write(piece.data[data_offset:data_offset + file_length])
+			data_offset += file_length
 
 	def _peer_connection_closed(self, peer_id, pending_request):
 		"""
