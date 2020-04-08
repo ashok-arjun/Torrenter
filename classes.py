@@ -114,7 +114,7 @@ class PieceManager:
 
 	def _initialise_pieces(self):
 
-		unconsumed_files = self.files
+		unconsumed_files = self.files[:]
 		consumed_files = []
 
 		for piece_index,piece_hash in enumerate(self.pieces_hash):
@@ -250,7 +250,7 @@ class PieceManager:
 				self.ongoing_pieces.pop(ongoing_index)
 				self.full_pieces.append(piece)
 				await self.write_piece_to_file(piece)
-				# print('Finished writing piece to file',piece.index)
+				print('Finished writing piece to file',piece.index)
 			else:
 				piece._clear_piece()
 				self.ongoing_pieces.pop(ongoing_index)
@@ -274,7 +274,8 @@ class PieceManager:
 		that PIECE from pending to missing, clear the piece.
 		"""
 
-		del self.peer_bitfields[peer_id]
+		if peer_id in peer_bitfields.keys():
+			del self.peer_bitfields[peer_id]
 		for i,piece in enumerate(self.ongoing_pieces):
 			if piece.index == pending_request.pieceIndex:
 				piece._clear_piece()
@@ -286,3 +287,8 @@ class PieceManager:
 	def get_download_speed(self):
 		seconds_elapsed = time() - self.start_time
 		return self.downloaded_bytes/seconds_elapsed	
+
+
+	@property
+	def complete(self):
+		return len(self.full_pieces) == len(self.pieces_hash)

@@ -21,7 +21,7 @@ from struct import unpack
 from peer import PeerConnection
 from pprint import pprint
 from time import time
-
+from concurrent.futures import CancelledError
 from classes import PieceManager
 
 def _decode_port(binary_port):
@@ -37,7 +37,7 @@ async def main():
     """
     Open torrent, bdecode the data
     """
-    with open('BNN.torrent','rb') as torrent_file:
+    with open('TinyCore-8.1.iso.torrent','rb') as torrent_file:
         torrent = torrent_file.read()
         torrent_data = Decoder(torrent).decode()
         info = torrent_data[b'info']
@@ -84,7 +84,6 @@ async def main():
     Create a single instance of piece_manager from the above data
     """
     piece_manager = await _create_piece_manager(pieces_hash,piece_length,total_length,name,files)
-    quit()
     """
     Create peer ID
     """
@@ -149,13 +148,20 @@ async def main():
     for peer in peer_list:
         peer_queue.put_nowait(peer)
 
+
     MAX_PEER_CONNECTIONS = len(peer_list)
+
+    print('No. of peers: ',MAX_PEER_CONNECTIONS)
+
 
     peer_connections = [PeerConnection(peer_queue,info_hash,piece_manager,peer_id) for peer in peer_list[:MAX_PEER_CONNECTIONS]]
 
     while(True):
-        #now it stops executing this function, and starts executing the waiting tasks(the _start_connection() functions of all the peers)
-        await asyncio.sleep(1)
+        if piece_manager.complete:
+            print('Torrent completed')
+            break
+
+        await asyncio.sleep(2)
         print('Cumulative download speed: ',piece_manager.get_download_speed(),'bytes per second')
 
     return None
@@ -176,7 +182,10 @@ try:
     loop = asyncio.get_event_loop()
     loop.run_until_complete(main())
 except KeyboardInterrupt as e:
+    print('Keyboard interrupt')
     pass
+except CancelledError:
+    print('Event loop was cancelled')
 
 print('The torrent ran for ',time() - start_time,'seconds')
-loop.close()
+# loop.close()

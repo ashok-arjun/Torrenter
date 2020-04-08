@@ -1,7 +1,7 @@
 import asyncio
 from protocol import *
 from struct import pack,unpack
-
+from concurrent.futures import CancelledError
 
 class ProtocolError(BaseException):
     pass
@@ -76,7 +76,7 @@ class PeerConnection:
             print('Connection refused')
         except ProtocolError as e:
             print('Protocol error')
-        except (ConnectionResetError, asyncio.CancelledError):
+        except (ConnectionResetError, CancelledError):
             print('Connection reset!')
         except Exception as e:
             print('Unknown error!')
@@ -120,6 +120,15 @@ class PeerConnection:
         await self.writer.drain()
 
     def cancel(self):
+
+        print('IN CANCEL')
+        if not self.connection.done():
+            self.connection.cancel()
+
+        if self.writer:
+            self.writer.close()
+
+        self.common_peer_queue.task_done()
         self.piece_manager._peer_connection_closed(self.remote_peer_id,self.pending_request)
 
 class PeerStreamIterator:
@@ -217,13 +226,16 @@ class PeerStreamIterator:
                             yield decoded 
 
             except (ConnectionResetError,ConnectionError):
-                print('Connection terminated by peer')
+                print('Connection terminated by peer - PSI 1')
                 raise StopAsyncIteration()
             except CancelledError:
+                print('Cancelled error - PSI 2')
                 raise StopAsyncIteration()
             except StopAsyncIteration as e:
+                print('PSI 3')
                 raise e
             except Exception as e:
+                print('PSI 4')
                 raise StopAsyncIteration()
 
         raise StopAsyncIteration()
