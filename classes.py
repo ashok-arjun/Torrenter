@@ -4,7 +4,6 @@ import os
 from time import time 
 from hashlib import sha1
 
-
 class Block:
 
 	BlockMissing = 0
@@ -24,11 +23,12 @@ class Block:
 class Piece:
 
 
-	def __init__(self, piece_hash, piece_index, piece_length, blocks):
+	def __init__(self, piece_hash, piece_index, piece_length, blocks, files):
 		self.index = piece_index
 		self.hash = piece_hash
 		self.blocks = blocks
 		self.length = piece_length
+		self.files = files
 		self.sending_peer = None
 
 	def _get_next_block(self):
@@ -113,19 +113,45 @@ class PieceManager:
 			self.file_pointers.append(await aiof.open(file['path'],mode))
 
 
+	# def _initialise_pieces(self):
+	# 	"""
+	# 	For every piece in the total_length,
+
+	# 	initialise the piece with its index within the file, hash, length
+	# 	Now:
+	# 	Initialise the blocks with the offset within the piece, length and set the piece.blocks = to a list to Block instances
+
+	# 	Append the piece to PieceManager.pieces    
+	# 	"""
+
+	# 	for piece_index,piece_hash in enumerate(self.pieces_hash):
+	# 		piece_offset = piece_index * self.piece_length
+	# 		piece_length = self.piece_length if piece_index < len(self.pieces_hash) - 1 else self.total_length - piece_offset
+	# 		blocks = []
+	# 		block_size = 2 ** 14
+	# 		block_index = 0
+	# 		more_blocks = True
+	# 		while(more_blocks):
+	# 			block_offset = block_index * block_size
+	# 			if block_offset + block_size < piece_length:
+	# 				block = Block(piece_index,block_offset,block_size)
+	# 			else:
+	# 				#last block
+	# 				block = Block(piece_index,block_offset,piece_length - block_offset)
+	# 				more_blocks = False
+	# 			blocks.append(block)
+	# 			block_index += 1
+
+
+	# 		self.missing_pieces.append(Piece(piece_hash,piece_index,piece_length,blocks))
+
 	def _initialise_pieces(self):
-		"""
-		For every piece in the total_length,
 
-		initialise the piece with its index within the file, hash, length
-		Now:
-		Initialise the blocks with the offset within the piece, length and set the piece.blocks = to a list to Block instances
-
-		Append the piece to PieceManager.pieces    
-		"""
+		unconsumed_files = self.files
+		consumed_files = []
 
 		for piece_index,piece_hash in enumerate(self.pieces_hash):
-			piece_offset = piece_index * self.piece_length
+
 			piece_length = self.piece_length if piece_index < len(self.pieces_hash) - 1 else self.total_length - piece_offset
 			blocks = []
 			block_size = 2 ** 14
@@ -142,8 +168,32 @@ class PieceManager:
 				blocks.append(block)
 				block_index += 1
 
+			piece_offset = 0
+			piece_files = []
 
-			self.missing_pieces.append(Piece(piece_hash,piece_index,piece_length,blocks))
+			for f in unconsumed_files[:]:
+
+				
+				piece_remaining_length = piece_length - piece_offset
+				if(piece_remaining_length <= 0):
+					break
+
+				file_remaining_length = f['length'] - f['offset']
+				
+				if file_remaining_length > piece_remaining_length:
+					piece_files.append({'index':f['index'],'offset':f['offset'],'length':piece_remaining_length})
+					f['offset'] += piece_remaining_length
+					piece_offset += piece_remaining_length
+				
+				elif file_remaining_length <= piece_remaining_length:
+					piece_files.append({'index':f['index'],'offset':f['offset'],'length':file_remaining_length})
+					f['offset'] += file_remaining_length
+					piece_offset += file_remaining_length
+					unconsumed_files.remove(f)
+					consumed_files.append(f)
+
+			self.missing_pieces.append(Piece(piece_hash,piece_index,piece_length,blocks,piece_files))
+			
 
 	def update_peer(self,peer_id, bitfield = b'', have = -1):
 		if(bitfield != b''):

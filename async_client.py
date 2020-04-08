@@ -53,15 +53,15 @@ async def main():
     name = info[b'name']
     if b'files' in info.keys():
         #multi-file torrent
-        for file in info[b'files']:
+        for i,file in enumerate(info[b'files']):
             len_file = file[b'length']
             path_file = file[b'path']
-            files.append({'path': (name + b'/') + (b'/'.join(path_file)), 'length': len_file, 'file_offset': 0})
+            files.append({'index':i, 'path': (name + b'/') + (b'/'.join(path_file)), 'length': len_file, 'offset': 0})
             total_length += len_file
     else:
         #single-file torrent
         total_length = info[b'length'] 
-        files.append({'path': name, 'length': total_length, 'file_offset': 0})
+        files.append({'index': 0, 'path': name, 'length': total_length, 'offset': 0})
 
     """
     Pieces
@@ -83,7 +83,6 @@ async def main():
     """
     Create a single instance of piece_manager from the above data
     """
-
     piece_manager = await _create_piece_manager(pieces_hash,piece_length,total_length,name,files)
     quit()
     """
