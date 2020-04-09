@@ -170,6 +170,7 @@ async def main():
         info = torrent_data[b'info']
         bencoded_info = Encoder(info).encode()
         info_hash = sha1(bencoded_info).digest()
+        #done
 
     """
     Get items from info dictionary
