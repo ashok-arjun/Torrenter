@@ -3,10 +3,11 @@ Stage 1: Implement N peer connections and see if all of them are performing the 
 Stage 2: Requesting pieces and receiving them. Check if full pieces are being received, persist them to file. 
 Stage 3: Check if asyncio is working with multiple peers and multiple pieces. 
 Stage 4: Multi file torrent downloading
-Stage 5: Add frequent tracker requests + torrent completion, add GUI for percentage completed.
-Stage 6: Rarest piece first algorithm + Try to improve speeds
-Stage 7: Uploading(seeding) - By sending listening, sending bitfields, unchokes, chokes, listening to requests, we already have an iterator
-Stage 8: Resume and pause
+Stage 5: UDP Protocol - add protocol checking, timeout for tracker responses.
+Stage 6: Add frequent tracker requests + torrent completion, add GUI for percentage completed.
+Stage 7: Rarest piece first algorithm + Try to improve speeds
+Stage 8: Uploading(seeding) - By sending listening, sending bitfields, unchokes, chokes, listening to requests, we already have an iterator
+Stage 9: Resume and pause
 """
 
 from own_bencoding import Encoder, Decoder
@@ -16,13 +17,139 @@ import asyncio
 import uvloop
 from hashlib import sha1
 import random
-from urllib.parse import urlencode
-from struct import unpack
+from urllib.parse import urlencode,urlparse
+from struct import unpack,pack
 from peer import PeerConnection
 from pprint import pprint
 from time import time
 from concurrent.futures import CancelledError
 from classes import PieceManager
+import datetime
+
+
+def get_peers_from_announce_list(announce_list, peer_id, info_hash, total_length, tracker = ''):
+    peer_list = set()
+    if tracker != '':
+        announce_list = [tracker]
+    for tracker in announce_list:
+        if tracker.startswith('udp'):
+            peerID = peer_id.encode()
+            parsed_url = urlparse(tracker)
+            hostname = parsed_url.hostname
+            port = parsed_url.port
+            ip = socket.gethostbyname(hostname)
+
+            conn = (ip, port)
+
+            s = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
+            s.settimeout(10)
+
+            transaction_id, connection_request = get_conn_request_udp()
+            try:
+                s.sendto(connection_request,conn)
+                response = s.recv(2048)
+            
+
+                if len(response) < 16:
+                    print('Response is less than 16 bytes',tracker)
+                    continue
+
+                decoded_response = decode_connection_response(response)
+
+                if decoded_response[0] == 0 and decoded_response[1] == transaction_id:
+                    connection_id = decoded_response[2]
+                else:
+                    print('Wrong response',tracker)
+                    continue
+
+
+                announce_request = get_announce_request_udp(info_hash,connection_id,peerID)
+                s.sendto(announce_request,conn)
+                response = s.recv(2048)
+
+                if len(response) < 20:
+                    print('Response is less than 20 bytes',tracker)
+
+                peers = response[20:]
+                peers = [peers[i:i + 6] for i in range(0,len(peers),6)]
+                for peer in peers:
+                    peer_list.add(peer)
+                print(tracker, 'success')
+                break
+            except socket.timeout:
+                print('Timeout',tracker)
+
+        elif tracker.startswith('http'):
+            try:
+                params = {
+                'info_hash': info_hash,
+                'peer_id': peer_id,
+                'port': 6889,
+                'uploaded': 0,
+                'downloaded': 0,
+                'left': total_length,
+                'compact': 1
+                }
+
+                url = tracker + '?' + urlencode(params)
+
+                response = requests.get(url,timeout = 10)
+                response = Decoder(response.content).decode()
+                if b'failure reason' in response:
+                    print('Tracker request failed!',tracker)
+                else:
+                    print('Tracker request success!',tracker)
+                    interval = response[b'interval']
+                    complete = response[b'complete']
+                    incomplete = response[b'incomplete']
+                    peers = response[b'peers']
+                    peers = [peers[i:i + 6] for i in range(0,len(peers),6)]
+                    for peer in peers:
+                        peer_list.add(peer)
+                    print(tracker, 'success')
+                    break
+            except requests.exceptions.Timeout:
+                print(tracker,' timed out')
+                continue
+
+    peer_list = list(peer_list)
+    return peer_list, tracker 
+
+def get_conn_request_udp():
+    transaction_id = random.randint(1,1000) 
+    message = pack('>QII',
+                        0x41727101980,
+                        0,
+                        transaction_id)
+
+    return transaction_id,message
+    
+    
+def decode_connection_response(response):
+    decoded_response = unpack('>IIQ',response)
+    return decoded_response
+
+
+def get_announce_request_udp(info_hash,connection_id,peer_id):
+    connection_id = pack('>Q',connection_id)
+    action = pack('>I', 1)
+    trans_id = pack('>I', random.randint(0, 100000))
+
+    downloaded = pack('>Q', 0)
+    left = pack('>Q', 0)
+    uploaded = pack('>Q', 0)
+
+    event = pack('>I', 0)
+    ip = pack('>I', 0)
+    key = pack('>I', 0)
+    num_want = pack('>i', -1)
+    port = pack('>h', 8000)
+
+    msg = (connection_id + action + trans_id + info_hash + peer_id + downloaded + 
+            left + uploaded + event + ip + key + num_want + port)
+
+    return msg
+
 
 def _decode_port(binary_port):
     return unpack('>H',binary_port)[0]
@@ -37,13 +164,12 @@ async def main():
     """
     Open torrent, bdecode the data
     """
-    with open('TinyCore-8.1.iso.torrent','rb') as torrent_file:
+    with open('Modern.Family.S11E17.720P.WEB.X264-POKE[rartv]-[rarbg.to].torrent','rb') as torrent_file:
         torrent = torrent_file.read()
         torrent_data = Decoder(torrent).decode()
         info = torrent_data[b'info']
         bencoded_info = Encoder(info).encode()
         info_hash = sha1(bencoded_info).digest()
-
 
     """
     Get items from info dictionary
@@ -91,51 +217,22 @@ async def main():
 
 
     """
-    Send GET request
-    """
-    params = {
-    'info_hash': info_hash,
-    'peer_id': peer_id,
-    'port': 6889,
-    'uploaded': 0,
-    'downloaded': 0,
-    'left': total_length,
-    'compact': 1
-    }
-
-    tracker = torrent_data[b'announce'].decode('utf-8')
-    url = tracker + '?' + urlencode(params)
-
-    print('Sending a request to', url)
-
-
-    """
-    Receive and decode the response
+    Populate announce list
     """
 
-    response = requests.get(url)
-    response = Decoder(response.content).decode()
-
-    print(response,len(response[b'peers']))
-
-    if b'failure reason' in response:
-        print('Tracker request failed!')
+    announce_list = []
+    if b'announce-list' in torrent_data.keys():
+        for announce in torrent_data[b'announce-list']:
+            announce_list.append((b''.join(announce)).decode('UTF-8'))
     else:
-        print('Tracker request success!')
-
-
-    interval = response[b'interval']
-    complete = response[b'complete']
-    incomplete = response[b'incomplete']
-    peers = response[b'peers']
-
-
+        announce_list.append(torrent_data[b'announce'].decode('UTF-8'))
 
     """
-    Decode the peers
+    Make requests and response from either the HTTP tracker or the UDP tracker
     """
-
-    peer_list = [peers[i:i + 6] for i in range(0,len(peers),6)]
+    
+    peer_list, tracker = get_peers_from_announce_list(announce_list,peer_id,info_hash, total_length)
+    previous = time()
     num_peers = len(peer_list)
     peer_list = [(socket.inet_ntoa(p[0:4]),_decode_port(p[4:])) for p in peer_list]
 
@@ -160,9 +257,24 @@ async def main():
         if piece_manager.complete:
             print('Torrent completed')
             break
+        else:
+            if(time() - previous > 20):
+                previous = time()
+                p_list, tracker = get_peers_from_announce_list(announce_list,peer_id,info_hash, total_length, tracker)
+                p_list = [(socket.inet_ntoa(p[0:4]),_decode_port(p[4:])) for p in p_list]
+                
+                peer_queue = asyncio.Queue()
+                for p in p_list:
+                    peer_queue.put_nowait(p)
 
-        await asyncio.sleep(2)
-        print('Cumulative download speed: ',piece_manager.get_download_speed(),'bytes per second')
+
+                for peer_connection in peer_connections:
+                    if peer_connection.not_alive:
+                        peer_connection.__init__(peer_queue,info_hash,piece_manager,peer_id)
+            print( piece_manager.percentage_complete_pieces, '%', ', ', piece_manager.get_download_speed()/1000,'kilobytes per second',end = '\r')
+            await asyncio.sleep(2)
+
+        
 
     return None
 
@@ -187,5 +299,4 @@ except KeyboardInterrupt as e:
 except CancelledError:
     print('Event loop was cancelled')
 
-print('The torrent ran for ',time() - start_time,'seconds')
-# loop.close()
+print('The torrent ran for ',str(datetime.timedelta(seconds= time() - start_time)) ,'seconds')

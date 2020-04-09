@@ -273,16 +273,14 @@ class PieceManager:
 		Remove the peer from the peer dictionary, and if there is a pending request for the peer, decode the request, transfer 
 		that PIECE from pending to missing, clear the piece.
 		"""
-
-		if peer_id in peer_bitfields.keys():
-			del self.peer_bitfields[peer_id]
+		self.peer_bitfields.pop(peer_id,None)
 		for i,piece in enumerate(self.ongoing_pieces):
 			if piece.index == pending_request.pieceIndex:
 				piece._clear_piece()
 				self.ongoing_pieces.pop(i)
 				self.missing_pieces.append(piece)
 				break
-		pass
+		return None
 
 	def get_download_speed(self):
 		seconds_elapsed = time() - self.start_time
@@ -292,3 +290,7 @@ class PieceManager:
 	@property
 	def complete(self):
 		return len(self.full_pieces) == len(self.pieces_hash)
+
+	@property
+	def percentage_complete_pieces(self):
+		return len(self.full_pieces) * 100 / len(self.pieces_hash)
