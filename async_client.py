@@ -25,134 +25,8 @@ from time import time
 from concurrent.futures import CancelledError
 from classes import PieceManager
 import datetime
+from tracker import Tracker
 
-
-def get_peers_from_announce_list(announce_list, peer_id, info_hash, total_length, tracker = ''):
-    peer_list = set()
-    if tracker != '':
-        announce_list = [tracker]
-    for tracker in announce_list:
-        if tracker.startswith('udp'):
-            peerID = peer_id.encode()
-            parsed_url = urlparse(tracker)
-            hostname = parsed_url.hostname
-            port = parsed_url.port
-            ip = socket.gethostbyname(hostname)
-
-            conn = (ip, port)
-
-            s = socket.socket(family=socket.AF_INET, type=socket.SOCK_DGRAM)
-            s.settimeout(10)
-
-            transaction_id, connection_request = get_conn_request_udp()
-            try:
-                s.sendto(connection_request,conn)
-                response = s.recv(2048)
-            
-
-                if len(response) < 16:
-                    print('Response is less than 16 bytes',tracker)
-                    continue
-
-                decoded_response = decode_connection_response(response)
-
-                if decoded_response[0] == 0 and decoded_response[1] == transaction_id:
-                    connection_id = decoded_response[2]
-                else:
-                    print('Wrong response',tracker)
-                    continue
-
-
-                announce_request = get_announce_request_udp(info_hash,connection_id,peerID)
-                s.sendto(announce_request,conn)
-                response = s.recv(2048)
-
-                if len(response) < 20:
-                    print('Response is less than 20 bytes',tracker)
-
-                peers = response[20:]
-                peers = [peers[i:i + 6] for i in range(0,len(peers),6)]
-                for peer in peers:
-                    peer_list.add(peer)
-                print(tracker, 'success')
-                break
-            except socket.timeout:
-                print('Timeout',tracker)
-
-        elif tracker.startswith('http'):
-            try:
-                params = {
-                'info_hash': info_hash,
-                'peer_id': peer_id,
-                'port': 6889,
-                'uploaded': 0,
-                'downloaded': 0,
-                'left': total_length,
-                'compact': 1
-                }
-
-                url = tracker + '?' + urlencode(params)
-
-                response = requests.get(url,timeout = 10)
-                response = Decoder(response.content).decode()
-                if b'failure reason' in response:
-                    print('Tracker request failed!',tracker)
-                else:
-                    interval = response[b'interval']
-                    complete = response[b'complete']
-                    incomplete = response[b'incomplete']
-                    peers = response[b'peers']
-                    peers = [peers[i:i + 6] for i in range(0,len(peers),6)]
-                    for peer in peers:
-                        peer_list.add(peer)
-                    print(tracker, 'success')
-                    break
-            except requests.exceptions.Timeout:
-                print(tracker,' timed out')
-                continue
-
-    peer_list = list(peer_list)
-    # return peer_list, tracker
-    return peer_list 
-
-def get_conn_request_udp():
-    transaction_id = random.randint(1,1000) 
-    message = pack('>QII',
-                        0x41727101980,
-                        0,
-                        transaction_id)
-
-    return transaction_id,message
-    
-    
-def decode_connection_response(response):
-    decoded_response = unpack('>IIQ',response)
-    return decoded_response
-
-
-def get_announce_request_udp(info_hash,connection_id,peer_id):
-    connection_id = pack('>Q',connection_id)
-    action = pack('>I', 1)
-    trans_id = pack('>I', random.randint(0, 100000))
-
-    downloaded = pack('>Q', 0)
-    left = pack('>Q', 0)
-    uploaded = pack('>Q', 0)
-
-    event = pack('>I', 0)
-    ip = pack('>I', 0)
-    key = pack('>I', 0)
-    num_want = pack('>i', -1)
-    port = pack('>h', 8000)
-
-    msg = (connection_id + action + trans_id + info_hash + peer_id + downloaded + 
-            left + uploaded + event + ip + key + num_want + port)
-
-    return msg
-
-
-def _decode_port(binary_port):
-    return unpack('>H',binary_port)[0]
 
 async def _create_piece_manager(pieces_hash,piece_length,total_length,name, files):
     piece_manager = PieceManager(pieces_hash,piece_length,total_length,name, files)
@@ -164,7 +38,7 @@ async def main():
     """
     Open torrent, bdecode the data
     """
-    with open('ubuntu.torrent','rb') as torrent_file:
+    with open('BNN.torrent','rb') as torrent_file:
         torrent = torrent_file.read()
         torrent_data = Decoder(torrent).decode()
         info = torrent_data[b'info']
@@ -232,10 +106,11 @@ async def main():
     Make requests and response from either the HTTP tracker or the UDP tracker
     """
     
-    peer_list = get_peers_from_announce_list(announce_list,peer_id,info_hash, total_length)
+    tracker = Tracker(announce_list,info_hash,peer_id,total_length)
+    current = time.time()
+
+    peer_list, interval = tracker.get_peers_from_announce_list(0,0)
     previous = time()
-    num_peers = len(peer_list)
-    peer_list = [(socket.inet_ntoa(p[0:4]),_decode_port(p[4:])) for p in peer_list]
 
     """
     We have the list of peers.
@@ -246,7 +121,7 @@ async def main():
     for peer in peer_list:
         peer_queue.put_nowait(peer)
 
-
+    
     MAX_PEER_CONNECTIONS = len(peer_list)
 
     print('No. of peers: ',MAX_PEER_CONNECTIONS)
@@ -259,19 +134,18 @@ async def main():
             print('Torrent completed')
             break
         else:
-            # if(time() - previous > 20):
-            #     previous = time()
-            #     p_list, tracker = get_peers_from_announce_list(announce_list,peer_id,info_hash, total_length, tracker)
-            #     p_list = [(socket.inet_ntoa(p[0:4]),_decode_port(p[4:])) for p in p_list]
-                
-            #     peer_queue = asyncio.Queue()
-            #     for p in p_list:
-            #         peer_queue.put_nowait(p)
+            if(time() - previous >= interval):
+                peer_list, interval = tracker._update_peer_list(piece_manager.downloaded_bytes,piece_manager.uploaded_bytes)     
+                for i,peer_connection in enumerate(peer_connections):
+                    if not peer_connection.alive:
+                        peer_connections.pop(i)
 
+                new_peer_queue = asyncio.Queue()
 
-            #     for peer_connection in peer_connections:
-            #         if not peer_connection.alive:
-            #             peer_connection.__init__(peer_queue,info_hash,piece_manager,peer_id)
+                for peer in peer_list:
+                    new_peer_queue.put_nowait(peer)
+                    peer_connections.append(PeerConnection(new_peer_queue,info_hash,piece_manager,peer_id))
+     
             await asyncio.sleep(2)
         print( piece_manager.percentage_complete_pieces, '%', ', ', piece_manager.get_download_speed()/1000,'kilobytes per second',end = '\r')
         

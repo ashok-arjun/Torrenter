@@ -294,3 +294,7 @@ class PieceManager:
 	@property
 	def percentage_complete_pieces(self):
 		return len(self.full_pieces) * 100 / len(self.pieces_hash)
+
+	@property
+	def uploaded_bytes(self):
+		return 0
