@@ -38,7 +38,7 @@ async def main():
     """
     Open torrent, bdecode the data
     """
-    with open('/home/arjunashok/Downloads/BNN.torrent','rb') as torrent_file:
+    with open('ubuntu.torrent','rb') as torrent_file:
         torrent = torrent_file.read()
         torrent_data = Decoder(torrent).decode()
         info = torrent_data[b'info']
