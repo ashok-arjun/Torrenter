@@ -131,27 +131,23 @@ async def main():
 
 
     while(True):
-        if piece_manager.complete:
-            print('Torrent completed')
-            break
-        else:
-            if(time() - previous >= 20 and PeerConnection.total_unchoked < 10) or (time() - previous >= interval):
-                print('Total number of obtained peers: ', total_peers_obtained)
-                print('Total number of unchoked peers: ', PeerConnection.total_unchoked)
-                peer_list = None
-                while(peer_list == None):
-                    print('Reconnecting with tracker for peers')
-                    peer_list, interval = tracker._update_peer_list(piece_manager.downloaded_bytes,piece_manager.uploaded_bytes) 
-                print('Got',len(peer_list),'peers')
-                total_peers_obtained += len(peer_list)
-                for peer in peer_list:
-                    peer_queue.put_nowait(peer)
-                
-                previous = time()
-                    
+
+    # Uncomment the following lines if you want atleast 5 unchoked peers at all times/ if you want trackers to get updated frequently
+
+    #     if(time() - previous >= 20 and PeerConnection.total_unchoked < 5) or (time() - previous >= interval):
+    #         peer_list = None
+    #         while(peer_list == None):
+    #             print('Reconnecting with tracker for peers')
+    #             peer_list, interval = tracker._update_peer_list(piece_manager.downloaded_bytes,piece_manager.uploaded_bytes) 
+    #         print('Got',len(peer_list),'peers')
+    #         total_peers_obtained += len(peer_list)
+    #         for peer in peer_list:
+    #             peer_queue.put_nowait(peer)
+            
+    #         previous = time()
+                        
         await asyncio.sleep(5)          
         print( piece_manager.percentage_complete_pieces, '%', ', ', piece_manager.get_download_speed()/1000,'kilobytes per second')
-        
 
     return None
 
