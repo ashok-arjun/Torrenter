@@ -37,7 +37,7 @@ class PeerConnection:
             try:
                 await self._get_socket(ip,port)
                 buffer = [await self._handshake()]
-                if buffer == -1:
+                if buffer[0] == -1:
                     self.cancel()
                     continue
                 # print('Handshake successful for ',ip,port)
@@ -56,7 +56,7 @@ class PeerConnection:
                     elif type(message) is Unchoke:
                         if 'choked' in self.states:
                             self.states.remove('choked')
-                        print('Unchoke received from ',self.ip,self.port)
+                        # print('Unchoke received from ',self.ip,self.port)
                         PeerConnection.total_unchoked += 1
 
                     elif type(message) is Choke:
@@ -250,7 +250,7 @@ class PeerStreamIterator:
                 # print('PSI 3')
                 raise e
             except Exception as e:
-                print('PSI 4')
+                print(e)
                 raise StopAsyncIteration()
 
         raise StopAsyncIteration()

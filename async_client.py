@@ -135,7 +135,7 @@ async def main():
             print('Torrent completed')
             break
         else:
-            if(time() - previous >= 20 and PeerConnection.total_unchoked < 5) or (time() - previous >= interval):
+            if(time() - previous >= 20 and PeerConnection.total_unchoked < 20) or (time() - previous >= interval):
                 print('Total number of obtained peers: ', total_peers_obtained)
                 print('Total number of unchoked peers: ', PeerConnection.total_unchoked)
                 peer_list = None
