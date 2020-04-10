@@ -63,7 +63,7 @@ class Tracker:
 
 
         except socket.timeout:
-            print('Timeout',tracker)
+            # print('UDP Timeout')
             return None
 
 
@@ -138,7 +138,7 @@ class Tracker:
                 peer_list = [(socket.inet_ntoa(p[0:4]),self._decode_port(p[4:])) for p in peer_list]
                 return peer_list, interval
         except requests.exceptions.Timeout:
-            print(tracker,' timed out')
+            # print(tracker,' timed out')
             return None, None
 
     def get_peers_from_announce_list(self,downloaded, uploaded):

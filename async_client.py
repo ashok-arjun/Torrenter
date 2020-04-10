@@ -107,10 +107,14 @@ async def main():
     """
     
     tracker = Tracker(announce_list,info_hash,peer_id,total_length)
-    current = time.time()
-
-    peer_list, interval = tracker.get_peers_from_announce_list(0,0)
+    peer_list = None
+    while(peer_list == None):
+        print('Trying to obtain peers from trackers...')
+        peer_list, interval = tracker.get_peers_from_announce_list(0,0)
+    print('Got',len(peer_list),'peers')
     previous = time()
+
+    total_peers_obtained = len(peer_list)
 
     """
     We have the list of peers.
@@ -120,34 +124,33 @@ async def main():
     peer_queue = asyncio.Queue()
     for peer in peer_list:
         peer_queue.put_nowait(peer)
-
     
     MAX_PEER_CONNECTIONS = len(peer_list)
-
-    print('No. of peers: ',MAX_PEER_CONNECTIONS)
-
-
     peer_connections = [PeerConnection(peer_queue,info_hash,piece_manager,peer_id) for peer in peer_list[:MAX_PEER_CONNECTIONS]]
+
+
 
     while(True):
         if piece_manager.complete:
             print('Torrent completed')
             break
         else:
-            if(time() - previous >= interval):
-                peer_list, interval = tracker._update_peer_list(piece_manager.downloaded_bytes,piece_manager.uploaded_bytes)     
-                for i,peer_connection in enumerate(peer_connections):
-                    if not peer_connection.alive:
-                        peer_connections.pop(i)
-
-                new_peer_queue = asyncio.Queue()
-
+            if(time() - previous >= 20 and PeerConnection.total_unchoked < 5) or (time() - previous >= interval):
+                print('Total number of obtained peers: ', total_peers_obtained)
+                print('Total number of unchoked peers: ', PeerConnection.total_unchoked)
+                peer_list = None
+                while(peer_list == None):
+                    print('Reconnecting with tracker for peers')
+                    peer_list, interval = tracker._update_peer_list(piece_manager.downloaded_bytes,piece_manager.uploaded_bytes) 
+                print('Got',len(peer_list),'peers')
+                total_peers_obtained += len(peer_list)
                 for peer in peer_list:
-                    new_peer_queue.put_nowait(peer)
-                    peer_connections.append(PeerConnection(new_peer_queue,info_hash,piece_manager,peer_id))
-     
-            await asyncio.sleep(2)
-        print( piece_manager.percentage_complete_pieces, '%', ', ', piece_manager.get_download_speed()/1000,'kilobytes per second',end = '\r')
+                    peer_queue.put_nowait(peer)
+                
+                previous = time()
+                    
+        await asyncio.sleep(5)          
+        print( piece_manager.percentage_complete_pieces, '%', ', ', piece_manager.get_download_speed()/1000,'kilobytes per second')
         
 
     return None
@@ -155,6 +158,10 @@ async def main():
     """
     End of main function
     """
+
+
+
+
 
 
 
