@@ -227,7 +227,7 @@ class PieceManager:
 		"""
 		#1
 		if self._check_block_integrity(message, corresponding_request) == False:
-			print('This block does not correspond to the previous request. Rejecting it.')
+			# print('This block does not correspond to the previous request. Rejecting it.')
 			return None
 
 
@@ -239,7 +239,7 @@ class PieceManager:
 				break
 
 		if flag == False:
-			print('No ongoing piece corresponds to the recieved piece')
+			# print('No ongoing piece corresponds to the recieved piece')
 			return None
 
 		self.downloaded_bytes += len(message.block_data)
