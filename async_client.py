@@ -38,7 +38,7 @@ async def main():
     """
     Open torrent, bdecode the data
     """
-    with open('ubuntu.torrent','rb') as torrent_file:
+    with open('TinyCore.iso.torrent','rb') as torrent_file:
         torrent = torrent_file.read()
         torrent_data = Decoder(torrent).decode()
         info = torrent_data[b'info']
@@ -114,8 +114,6 @@ async def main():
     print('Got',len(peer_list),'peers')
     previous = time()
 
-    total_peers_obtained = len(peer_list)
-
     """
     We have the list of peers.
     Now we have to create num_peers PeerConnection instances, which will automatically asynchronouly perform handshake and print the bitfield
@@ -129,26 +127,28 @@ async def main():
     peer_connections = [PeerConnection(peer_queue,info_hash,piece_manager,peer_id) for peer in peer_list[:MAX_PEER_CONNECTIONS]]
 
 
-
+    i = 0 #to check for minimum number of peers, we increment i every 2 seconds, and when we reach 40 seconds, we check(for optimality)
     while(True):
 
     # Uncomment the following lines if you want atleast 5 unchoked peers at all times/ if you want trackers to get updated frequently
+        if i == 20:      
+            i = 0  
+            current = time()
 
-        if(time() - previous >= 20 and PeerConnection.total_unchoked < 5) or (time() - previous >= interval):
-            peer_list = None
-            while(peer_list == None):
-                print('Reconnecting with tracker for peers')
-                peer_list, interval = tracker._update_peer_list(piece_manager.downloaded_bytes,piece_manager.uploaded_bytes) 
-            print('Got',len(peer_list),'peers')
-            total_peers_obtained += len(peer_list)
-            for peer in peer_list:
-                peer_queue.put_nowait(peer)
-            
-            previous = time()
+            if(current - previous >= 20 and PeerConnection.total_unchoked < 5) or (current - previous >= interval):
+                peer_list = None
+                while(peer_list == None):
+                    print('Reconnecting with tracker for more peers')
+                    peer_list, interval = tracker._update_peer_list(piece_manager.downloaded_bytes,piece_manager.uploaded_bytes) 
+                print('Got',len(peer_list),'peers')
+                for peer in peer_list:
+                    peer_queue.put_nowait(peer)
+                
+                previous = current
                         
-        await asyncio.sleep(5)          
-        print( piece_manager.percentage_complete_pieces, '%', ', ', piece_manager.get_download_speed()/1000,'kilobytes per second')
-
+        await asyncio.sleep(2)          
+        print( round(piece_manager.percentage_complete_pieces,4), '%', ', ', round(piece_manager.get_download_speed()/1000,4),'kilobytes per second')
+        i += 1
     return None
 
     """

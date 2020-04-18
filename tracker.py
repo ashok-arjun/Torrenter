@@ -124,7 +124,11 @@ class Tracker:
             url = tracker + '?' + urlencode(params)
 
             response = requests.get(url,timeout = 5)
-            response = Decoder(response.content).decode()
+            try:
+                response = Decoder(response.content).decode()
+            except RuntimeError:
+                print('Wrong response from tracker')
+                return None, None
             if b'failure reason' in response:
                 # print('Tracker request failed!',tracker)
                 return None, None
