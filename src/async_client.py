@@ -1,19 +1,18 @@
-from own_bencoding import Encoder, Decoder
-import requests
-import socket
-import asyncio
-import uvloop
-from hashlib import sha1
-import random
-from urllib.parse import urlencode,urlparse
-from struct import unpack,pack
-from peer import PeerConnection
-from pprint import pprint
-from time import time
-from concurrent.futures import CancelledError
-from classes import PieceManager
-import datetime
-from tracker import Tracker
+from own_bencoding import Encoder, Decoder #for decoding torrent file and tracker repsonse
+import requests #for HTTP requests
+import socket #for peer connections and UDP tracker
+import asyncio #for asynchronous operations
+import uvloop #faster operations for asyncio
+from hashlib import sha1 #to compute hash of info dictionary
+import random #for generating the peer IDs
+from time import time #for calculating number of seconds the program ran
+import datetime #to convert seconds to h:m:s
+from concurrent.futures import CancelledError #an inbuilt exception
+
+#CUSTOM CLASSES
+from peer import PeerConnection #TO CONNECT TO PEERS
+from classes import PieceManager #TO MANAGE THE TORRENT'S FILES
+from tracker import Tracker #TO REQUEST TRACKER AND GET THE RESPONSE
 
 
 async def _create_piece_manager(pieces_hash,piece_length,total_length,name, files):
