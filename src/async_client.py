@@ -38,7 +38,7 @@ async def main():
     """
     Open torrent, bdecode the data
     """
-    with open('TinyCore.iso.torrent','rb') as torrent_file:
+    with open('../torrents/TinyCore.iso.torrent','rb') as torrent_file:
         torrent = torrent_file.read()
         torrent_data = Decoder(torrent).decode()
         info = torrent_data[b'info']
@@ -52,6 +52,9 @@ async def main():
     files = []
     total_length = 0
     name = info[b'name']
+
+    name = b'../output/' + name
+
     if b'files' in info.keys():
         #multi-file torrent
         for i,file in enumerate(info[b'files']):
