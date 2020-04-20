@@ -8,6 +8,8 @@ import random #for generating the peer IDs
 from time import time #for calculating number of seconds the program ran
 import datetime #to convert seconds to h:m:s
 from concurrent.futures import CancelledError #an inbuilt exception
+import argparse #for command line arguments
+from os import path #to check if the torrent is valid(the path exists)
 
 #CUSTOM CLASSES
 from peer import PeerConnection #TO CONNECT TO PEERS
@@ -21,11 +23,11 @@ async def _create_piece_manager(pieces_hash,piece_length,total_length,name, file
     return piece_manager
 
 
-async def main():
+async def main(torrent_path):
     """
     Open torrent, bdecode the data
     """
-    with open('../torrents/TinyCore.iso.torrent','rb') as torrent_file:
+    with open(torrent_path,'rb') as torrent_file:
         torrent = torrent_file.read()
         torrent_data = Decoder(torrent).decode()
         info = torrent_data[b'info']
@@ -153,17 +155,29 @@ async def main():
 
 
 
+if __name__ == '__main__':
 
-start_time = time()
+    parser = argparse.ArgumentParser(description='To get the input torrent file')
+    parser.add_argument('torrent', help= 'the torrent to be downloaded')
 
-try:
-    uvloop.install()
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(main())
-except KeyboardInterrupt as e:
-    print('Keyboard interrupt')
-    pass
-except CancelledError:
-    print('Event loop was cancelled')
+    args = parser.parse_args()
 
-print('The torrent ran for ',str(datetime.timedelta(seconds= time() - start_time)) ,'seconds')
+    torrent_path = args.torrent
+
+    if not path.exists(torrent_path):
+        print('The torrent path is invalid!')
+        quit()
+
+    start_time = time()
+
+    try:
+        uvloop.install()
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(main(torrent_path))
+    except KeyboardInterrupt as e:
+        print('Keyboard interrupt')
+        pass
+    except CancelledError:
+        print('Event loop was cancelled')
+
+    print('The torrent ran for ',str(datetime.timedelta(seconds= time() - start_time)) ,'seconds')
