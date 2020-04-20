@@ -6,7 +6,9 @@
 
 ## 3. Put your torrent file in the torrents folder.
 
-## 4. Run 'src/async_client.py' i.e. in the terminal, with command line parameter as the torrent path
+## 4. Change the working directory to 'src' folder (you can use the 'cd' command)
+
+## 4. Run 'async_client.py' i.e. in the terminal, with command line parameter as the torrent path
 
 ## For example:
 
@@ -15,7 +17,7 @@
 ### So, I will type the following command in the terminal to download that torrent(my current working directory is the main directory with 3 folders):
 (remove the single quotes)
 
-'python src/async_client.py torrents/ubuntu.torrent'
+'python async_client.py ../torrents/ubuntu.torrent'
 
 
 
