@@ -15,7 +15,8 @@
 ### So, I will type the following command in the terminal to download that torrent(my current working directory is the main directory with 3 folders):
 (remove the single quotes)
 
-'python src/async_client.py ../torrents/ubuntu.torrent'
+'python src/async_client.py torrents/ubuntu.torrent'
+
 
 
 ### This will run the program.
