@@ -13,7 +13,7 @@ from os import path #to check if the torrent is valid(the path exists)
 
 #CUSTOM CLASSES
 from peer import PeerConnection #TO CONNECT TO PEERS
-from classes import PieceManager #TO MANAGE THE TORRENT'S FILES
+from piece_manager import PieceManager #TO MANAGE THE TORRENT'S FILES
 from tracker import Tracker #TO REQUEST TRACKER AND GET THE RESPONSE
 
 
