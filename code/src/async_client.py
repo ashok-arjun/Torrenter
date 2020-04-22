@@ -10,12 +10,12 @@ import datetime #to convert seconds to h:m:s
 from concurrent.futures import CancelledError #an inbuilt exception
 import argparse #for command line arguments
 from os import path #to check if the torrent is valid(the path exists)
+from pprint import pprint
 
 #CUSTOM CLASSES
 from peer import PeerConnection #TO CONNECT TO PEERS
 from piece_manager import PieceManager #TO MANAGE THE TORRENT'S FILES
 from tracker import Tracker #TO REQUEST TRACKER AND GET THE RESPONSE
-
 
 async def _create_piece_manager(pieces_hash,piece_length,total_length,name, files):
     piece_manager = PieceManager(pieces_hash,piece_length,total_length,name, files)
@@ -30,6 +30,7 @@ async def main(torrent_path):
     with open(torrent_path,'rb') as torrent_file:
         torrent = torrent_file.read()
         torrent_data = Decoder(torrent).decode()
+        pprint(torrent_data)
         info = torrent_data[b'info']
         bencoded_info = Encoder(info).encode()
         info_hash = sha1(bencoded_info).digest()
@@ -106,6 +107,8 @@ async def main(torrent_path):
     print('Got',len(peer_list),'peers')
     previous = time()
 
+    pprint(peer_list)
+
     """
     We have the list of peers.
     Now we have to create num_peers PeerConnection instances, which will automatically asynchronouly perform handshake and print the bitfield
@@ -123,20 +126,20 @@ async def main(torrent_path):
     while(True):
 
     # Uncomment the following lines if you want atleast 5 unchoked peers at all times/ if you want trackers to get updated frequently
-        if i == 20:      
-            i = 0  
-            current = time()
+        # if i == 20:      
+        #     i = 0  
+        #     current = time()
 
-            if(current - previous >= 20 and PeerConnection.total_unchoked < 5) or (current - previous >= interval):
-                peer_list = None
-                while(peer_list == None):
-                    print('Reconnecting with tracker for more peers')
-                    peer_list, interval = tracker._update_peer_list(piece_manager.downloaded_bytes,piece_manager.uploaded_bytes) 
-                print('Got',len(peer_list),'peers')
-                for peer in peer_list:
-                    peer_queue.put_nowait(peer)
+        #     if(current - previous >= 20 and PeerConnection.total_unchoked < 5) or (current - previous >= interval):
+        #         peer_list = None
+        #         while(peer_list == None):
+        #             print('Reconnecting with tracker for more peers')
+        #             peer_list, interval = tracker._update_peer_list(piece_manager.downloaded_bytes,piece_manager.uploaded_bytes) 
+        #         print('Got',len(peer_list),'peers')
+        #         for peer in peer_list:
+        #             peer_queue.put_nowait(peer)
                 
-                previous = current
+        #         previous = current
                         
         await asyncio.sleep(2)          
         print( round(piece_manager.percentage_complete_pieces,4), '%', ', ', round(piece_manager.get_download_speed()/1000,4),'kilobytes per second')
