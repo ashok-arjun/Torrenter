@@ -1,4 +1,6 @@
-Instructions to execute the torrent client
+# Torrenter
+
+# Instructions to execute the torrent client
 
 1. Open the main directory(the current directory) in your environment.
 
@@ -16,7 +18,6 @@ Instructions to execute the torrent client
 
 
 5. Run 'async_client.py' i.e. in the terminal, with command line parameter as the torrent path
-
 
 
 For example:
